@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "_comment": "Flutter Skills 项目的 Claude Code settings 模板。复制到用户项目的 .claude/settings.json 即可。",
+
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Write(lib/**)",
+      "Write(test/**)",
+      "Write(mock/**)",
+      "Write(assets/**)",
+      "Write(docs/specs/**)",
+      "Write(docs/plans/**)",
+      "Write(docs/api/**)",
+      "Write(docs/api-public/**)",
+      "Write(docs/review/**)",
+      "Write(docs/_health/**)",
+      "Write(docs/_failures/**)",
+      "Write(.flow_checkpoint/**)",
+      "Write(.flow_log/**)",
+      "Write(.telemetry/**)",
+      "Edit(lib/**)",
+      "Edit(test/**)",
+      "Edit(mock/**)",
+      "Edit(docs/**)",
+      "Edit(pubspec.yaml)",
+      "Edit(.env.dev)",
+      "Bash(flutter:*)",
+      "Bash(dart:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(git status)",
+      "Bash(git diff)",
+      "Bash(git log:*)",
+      "Bash(git stash)",
+      "Bash(git stash pop)"
+    ],
+    "deny": [
+      "Write(.env.prod)",
+      "Edit(.env.prod)",
+      "Write(.git/**)",
+      "Edit(.git/**)",
+      "Write(android/key.properties)",
+      "Write(ios/Runner.xcodeproj/project.pbxproj)",
+      "Bash(rm -rf:*)",
+      "Bash(git push:*)",
+      "Bash(git push --force:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(npm publish:*)",
+      "Bash(pub publish:*)"
+    ]
+  },
+
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "command": "bash _governance/hooks/lint-on-write.sh \"$CLAUDE_TOOL_FILE_PATH\""
+      },
+      {
+        "matcher": "Skill",
+        "command": "bash _telemetry/log_skill_call.sh \"$CLAUDE_SKILL_NAME\" success"
+      }
+    ],
+    "Stop": [
+      {
+        "command": "bash _governance/hooks/post-skill.sh"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "command": "bash _governance/hooks/check-git-clean.sh"
+      }
+    ]
+  },
+
+  "environment": {
+    "USE_MOCK": "true",
+    "FLUTTER_ROOT_DIR": ".",
+    "PROJECT_LOG_LEVEL": "info"
+  },
+
+  "model": {
+    "default": "sonnet",
+    "_comment": "skill 可在 frontmatter 覆盖。workflow/spec/plan/review 用 opus,生成类用 sonnet,format 类用 haiku。"
+  }
+}

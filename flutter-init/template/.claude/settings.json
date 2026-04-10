@@ -1,0 +1,141 @@
+{
+  "model": "sonnet",
+
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Glob(**)",
+      "Grep(**)",
+
+      "Write(lib/**)",
+      "Write(test/**)",
+      "Write(mock/**)",
+      "Write(assets/**)",
+      "Write(scripts/**)",
+      "Edit(lib/**)",
+      "Edit(test/**)",
+      "Edit(mock/**)",
+      "Edit(assets/**)",
+      "Edit(scripts/**)",
+
+      "Write(docs/_context/**)",
+      "Write(docs/specs/**)",
+      "Write(docs/plans/**)",
+      "Write(docs/api/**)",
+      "Write(docs/api-public/**)",
+      "Write(docs/review/**)",
+      "Write(docs/_health/**)",
+      "Write(docs/_failures/**)",
+      "Write(docs/_feedback/**)",
+      "Edit(docs/**)",
+
+      "Write(.flow_checkpoint/**)",
+      "Write(.flow_log/**)",
+      "Write(.telemetry/**)",
+      "Edit(.flow_checkpoint/**)",
+
+      "Edit(pubspec.yaml)",
+      "Edit(analysis_options.yaml)",
+      "Edit(.fvmrc)",
+      "Edit(.env.dev)",
+      "Edit(.gitignore)",
+      "Edit(README.md)",
+      "Edit(CLAUDE.md)",
+      "Edit(.vscode/launch.json)",
+      "Edit(.vscode/settings.json)",
+
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(echo:*)",
+      "Bash(diff:*)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(chmod:*)",
+      "Bash(sed:*)",
+      "Bash(awk:*)",
+      "Bash(tr:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(test:*)",
+      "Bash(true)",
+      "Bash(false)",
+
+      "Bash(flutter:*)",
+      "Bash(dart:*)",
+      "Bash(fvm:*)",
+
+      "Bash(bash scripts/*)",
+      "Bash(./scripts/*)",
+      "Bash(bash:*)",
+      "Bash(sh:*)",
+
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(node:*)",
+
+      "Bash(git status)",
+      "Bash(git diff)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch)",
+      "Bash(git branch:*)",
+      "Bash(git show:*)",
+      "Bash(git stash)",
+      "Bash(git stash:*)",
+      "Bash(git restore:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git init)",
+      "Bash(git remote -v)"
+    ],
+
+    "deny": [
+      "Write(.env.prod)",
+      "Edit(.env.prod)",
+      "Write(.env.local)",
+      "Edit(.env.local)",
+      "Write(android/key.properties)",
+      "Write(android/app/google-services.json)",
+      "Write(ios/Runner/GoogleService-Info.plist)",
+
+      "Write(android/**)",
+      "Write(ios/**)",
+      "Write(macos/**)",
+      "Write(windows/**)",
+      "Write(linux/**)",
+      "Edit(android/build.gradle)",
+      "Edit(ios/Runner.xcodeproj/**)",
+
+      "Write(.git/**)",
+      "Edit(.git/**)",
+
+      "Write(.fvm/flutter_sdk/**)",
+      "Edit(.fvm/flutter_sdk/**)",
+
+      "Bash(rm -rf:*)",
+      "Bash(rm -fr:*)",
+      "Bash(sudo:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(npm publish:*)",
+      "Bash(pub publish:*)",
+
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git rebase:*)",
+      "Bash(git merge:*)"
+    ]
+  },
+
+  "environment": {
+    "USE_MOCK": "true"
+  }
+}

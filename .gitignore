@@ -1,0 +1,46 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+*.iml
+*.ipr
+*.iws
+
+# Python (用于 _telemetry 脚本调试)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.pytest_cache/
+
+# Node (可能未来集成)
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor swap
+*.swp
+*.swo
+*~
+.*.sw?
+
+# 组长个人备忘(不上传)
+_team/渡.md

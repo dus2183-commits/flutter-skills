@@ -1,0 +1,47 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# fvm — 锁定 Flutter 版本
+# .fvmrc 入 git (锁版本号)
+# .fvm/flutter_sdk 不入 git (软链接,各人机器路径不同)
+# .fvm/versions 不入 git (实际 SDK 文件,大且本地)
+.fvm/flutter_sdk
+.fvm/versions
+.fvm/.fvmrc-cache
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+*.iml
+*.ipr
+*.iws
+
+# macOS
+.DS_Store
+
+# 环境配置 (敏感)
+.env.prod
+.env.local
+
+# Skill workflow 临时文件
+.flow_checkpoint/
+.flow_log/
+.telemetry/
+docs/_failures/
+docs/_health/
+docs/_feedback/
+
+# 生成文件
+*.g.dart
+*.freezed.dart
+
+# Coverage
+coverage/

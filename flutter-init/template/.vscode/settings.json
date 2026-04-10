@@ -1,0 +1,40 @@
+{
+  "// 关键: 让 VS Code 用项目锁定的 fvm Flutter SDK": "",
+  "dart.flutterSdkPath": ".fvm/flutter_sdk",
+
+  "// 隐藏 fvm 内部文件,避免污染搜索/索引": "",
+  "search.exclude": {
+    "**/.fvm/flutter_sdk": true,
+    "**/.fvm/versions": true,
+    "**/build": true,
+    "**/.dart_tool": true
+  },
+  "files.watcherExclude": {
+    "**/.fvm/flutter_sdk/**": true,
+    "**/.fvm/versions/**": true,
+    "**/build/**": true,
+    "**/.dart_tool/**": true
+  },
+  "files.exclude": {
+    "**/.fvm/flutter_sdk": true,
+    "**/.fvm/versions": true
+  },
+
+  "// Dart 格式化设置": "",
+  "dart.lineLength": 100,
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit"
+    },
+    "editor.rulers": [100],
+    "editor.selectionHighlight": false,
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
+  },
+
+  "// 文件关联": "",
+  "files.associations": {
+    "*.fvmrc": "json"
+  }
+}
