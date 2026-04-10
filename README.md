@@ -12,9 +12,8 @@
 - [Quick Start](#quick-start)
 - [系统全景](#系统全景)
 - [24 个交付物](#24-个交付物)
-- [3 人分工总览](#3-人分工总览)
 - [完整工作流示例](#完整工作流示例)
-- [与 yc141 / Go skill 的关系](#与-yc141--go-skill-的关系)
+- [核心能力](#核心能力)
 - [贡献指南](#贡献指南)
 
 ---
@@ -26,11 +25,11 @@
 2. **保质** — 所有代码自动符合规范、三端兼容、加密、Mock-first
 3. **可演进** — 每次决策入档,新人 1 天上手
 
-### 与同类项目的差异
-- vs **手写 Flutter 项目** — 不需要每次重新搭脚手架
-- vs **`flutter create` 模板** — 内置加密、Mock、GetX、规范、AI 工作流
-- vs **Go 那套 skill** — 完整 multi-agent 编排,有 Reflector + Checkpoint
-- vs **yc141** — 多了工作流编排 + Mock 系统 + 18 个 skill
+### 它解决什么问题
+- **从 0 搭 Flutter 项目** → 不需要每次重新配加密/Mock/GetX/三端/Lint
+- **团队协作** → SKILL.md 模板 + 规范 + 工作流,新人 1 天上手
+- **代码生成** → 说"做 XX 模块",自动产出 spec → plan → 接口契约 → model → repository → 页面
+- **质量保障** → 14 类常见 bug 防御,Quality Gate 5 个关卡自动卡
 
 ---
 
@@ -141,21 +140,6 @@ Claude: [触发 flutter-flow-feature workflow]
 
 ---
 
-## 3 人分工总览
-
-| | 你(组长) | B | C |
-|---|---|---|---|
-| **抓什么** | 系统 + 主轴 | 数据生成 | UI + 设计 + 质量 |
-| **Workflow** | 全部 6 个 | - | - |
-| **Skill** | 6 个 | 5 个 | 7 个 |
-| **代码** | template + core/ | - | 5-Tab UI + widgets |
-| **总交付物** | 14 项 | 6 项 | 10 项 |
-| **关键路径** | ApiClient 签名 + Workflow | 等签名 | 等 5-Tab 框架 |
-
-详细分工见 [`docs/team.md`](./docs/team.md) (待写)。
-
----
-
 ## 完整工作流示例
 
 ### 场景: "做一个公告模块"
@@ -220,35 +204,38 @@ Claude: [触发 flutter-flow-feature workflow]
 
 ---
 
-## 与 yc141 / Go skill 的关系
+## 核心能力
 
-### 与 yc141_app 的关系
-yc141 是我们的**代码底座**:
-- 加密层 (aes_dynamic + aes_util) → 直接复用
-- 加密图片三平台实现 → 直接复用
-- web/js/ 加密 JS → 直接复用
-- HttpApi → 改造成 ApiClient + 6 个 Interceptor
-- AppAPI → 改造成 AppConfig (GetxService + abstract)
+### 生产级代码底座
+- **接口加密** — AES-CBC-256 + 动态 key (HMAC-SHA256) + GZIP 压缩,三端一套
+- **加密图片** — 自实现 `NetworkImage`,`.bnc` URL 自动解密,io / web 双实现
+- **三端严格兼容** — Android / iOS / Web 全量支持,条件导出 + 权限降级
+- **Mock-first 开发** — `MockInterceptor` 按 `USE_MOCK` 编译期开关,业务层零感知
+- **sealed class 异常体系** — `AppException` 基类 + 7 类子异常,类型安全 catch
+- **GetX 全家桶** — 状态管理 / 路由 / DI / i18n 一体化
+- **fvm 版本锁定** — 锁 Flutter 3.27.2,团队任何环境一行命令就绪
 
-我们的**增量价值**:
-- Mock-first 工作流 (yc141 没有)
-- 6 个 Workflow 编排 (yc141 没有)
-- 18 个自动化 skill (yc141 没有)
-- AppException sealed class 体系 (yc141 用 String)
-- Context Pack + ADR 机制 (yc141 没有)
+### AI 工作流编排
+- **24 个交付物**: 6 个 Workflow + 18 个 Worker Skill
+- **Artifact 管道**: spec → plan → api-design → model → api → page → review,全流程产物可追溯
+- **L6 Orchestration**: Router + Conductor + Reflector 三角色,自动编排多步骤任务
+- **状态机 + Checkpoint**: workflow 可中断、可恢复、跨会话延续
+- **Reflector 质量保障**: 每步 artifact 二次评估(Schema + Rule + LLM 三策略)
+- **5 个 Quality Gate**: Spec / Plan / Design / Code / Review 每阶段卡口
 
-### 与 Go 那套 skill 的对比
+### 自动化脚手架
+- **一键 setup**: `bash scripts/setup.sh` 装 fvm + 锁 Flutter 版本 + pub get + build_runner
+- **分级 build_check**: `quick` (3s) / `fast` (20s,默认) / `full` (2-5 min)
+- **数据驱动 Tab**: `lib/app/tabs.dart` 加减 Tab 改一个文件,自动适应 0/1/N
+- **EasyRefresh 下拉刷新 + 上拉加载**: 中文文案,锁版本兼容 web
+- **占位符替换**: 新项目初始化自动替换 `{{PROJECT_NAME}}` / `{{TAB_1_NAME}}` 等
 
-| 特性 | Go 那套 (api-design/code-generate/api-doc/solution-review) | 我们 |
-|---|---|---|
-| Skill 数 | 4 个 | 24 个 (6 workflow + 18 skill) |
-| 编排 | 靠 frontmatter 提示用户 | 完整 L6 Conductor |
-| 状态 | 无 | 状态机 + Checkpoint |
-| 质量保障 | 单 skill 自检 | Reflector 二次评估 |
-| 失败恢复 | 无 | Checkpoint 恢复 |
-| Mock 支持 | 无 | 全套 |
-| 多端 | 无 | 严格三端 |
-| 加密 | 无 | yc141 级别 |
+### 工程规范
+- **14 类常见 bug 防御** 写入 SKILL.md 模板(R2-R6 端到端测试积累)
+- **编码规范** 命名 / Widget 拆分阈值 / GetX 使用 / 多平台铁律
+- **错误码段位** 每模块 100 个段位,不冲突
+- **ADR 决策记录** 追加式,不删历史
+- **项目级权限** 82 allow + 30 deny,sub-agent 继承
 
 ---
 
