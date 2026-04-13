@@ -238,55 +238,44 @@ app.dart 自动显示空 Scaffold,需要把 main.dart 的 initialRoute 改成业
 
 ### Step 8 — 安装项目级 skill + CLAUDE.md (按 code_style)
 
-**skill 装到项目级 `.claude/skills/`，不装全局。** 不同项目互不影响。
+**skill 装到项目级 `.claude/skills/`，不污染全局。**
 
-**8.1 — 选择 CLAUDE.md 模板:**
+**8.1 — 选择 CLAUDE.md:**
 
 | code_style | CLAUDE.md | 效果 |
 |---|---|---|
-| `full` | `CLAUDE_full.md` | 强制 freezed + ApiClient + mockKey + tearoff + EasyRefresh |
+| `full` | `CLAUDE_full.md` | 强制 freezed + ApiClient + mockKey + tearoff，所有 skill 生效 |
 | `light` | `CLAUDE_light.md` | 用 GetX 但不强制 freezed/ApiClient |
-| `free` | `CLAUDE_free.md` | 只有目录结构,自由发挥 |
+| `free` | `CLAUDE_free.md` | 只有目录结构，自由发挥 |
 
 ```bash
 cp {skill_dir}/template/_claude_templates/CLAUDE_{code_style}.md {target_dir}/CLAUDE.md
 ```
 
-**8.2 — 安装项目级 skill (软链到 .claude/skills/):**
+**8.2 — 安装项目级 skill:**
 
 ```bash
 mkdir -p {target_dir}/.claude/skills
 ```
 
-按 code_style 装不同数量的 skill:
-
 | code_style | 安装的 skill | 数量 |
 |---|---|---|
 | `full` | 全部 29 个 worker + 6 个 workflow | 35 |
-| `light` | 只装 page-gen / review / lint-fix / health-check / init | 5 |
-| `free` | 不装任何 skill | 0 |
+| `light` | page-gen / review / lint-fix / health-check | 4 |
+| `free` | 不装 | 0 |
 
 ```bash
-# full 模式: 链所有 skill
+# full 模式
 for dir in {skill_dir}/flutter-*/; do
-  ln -s "$dir" "{target_dir}/.claude/skills/$(basename $dir)"
+  [ -f "$dir/SKILL.md" ] && ln -s "$dir" "{target_dir}/.claude/skills/$(basename $dir)"
 done
 for dir in {skill_dir}/_orchestration/flutter-flow-*/; do
   ln -s "$dir" "{target_dir}/.claude/skills/$(basename $dir)"
 done
-
-# light 模式: 只链核心 5 个
-for name in flutter-page-gen flutter-review flutter-lint-fix flutter-health-check flutter-init; do
-  ln -s "{skill_dir}/$name" "{target_dir}/.claude/skills/$name"
-done
-
-# free 模式: 不链
 ```
 
-这样:
-- **不污染全局** `~/.claude/skills/`
-- **不同项目可以有不同 skill 集合**
-- **删项目 = 删 skill**，干净
+init 完成后提示用户：**"请在项目目录下重新打开 Claude Code 开始开发"**
+（因为 `.claude/settings.json` 权限配置 + `.claude/skills/` 需要 Claude Code 重新加载）
 
 ### Step 9 — 处理 .env 文件 (原 Step 8)
 - `.env.dev` 保留开发配置模板,含:

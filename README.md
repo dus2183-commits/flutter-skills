@@ -43,7 +43,7 @@ git clone <this repo> ~/Desktop/skills/flutter-skills
 
 ### 2. 安装初始化 skill (一次性)
 ```bash
-# 只需要装 flutter-init 到全局,其他 skill 会在初始化项目时自动装到项目里
+# 只装 init 到全局（其他 skill 在创建项目时自动装到项目级）
 mkdir -p ~/.claude/skills
 ln -s ~/Desktop/skills/flutter-skills/flutter-init ~/.claude/skills/flutter-init
 ln -s ~/Desktop/skills/flutter-skills/_orchestration/flutter-flow-init ~/.claude/skills/flutter-flow-init
@@ -93,7 +93,14 @@ fvm flutter run --dart-define=USE_MOCK=true
 | **light** | 5 个核心 | GetX 但不强制 freezed/ApiClient | 个人项目、快速原型 |
 | **free** | 无 | 只有目录结构 | Demo、实验 |
 
-**已有项目切换等级?** 换 CLAUDE.md + 增删 `.claude/skills/` 里的软链即可。
+**已有项目切换等级?** 换 CLAUDE.md + 增删 `.claude/skills/` 里的软链:
+```bash
+# 换规范
+cp ~/Desktop/skills/flutter-skills/flutter-init/template/_claude_templates/CLAUDE_light.md ./CLAUDE.md
+
+# 加/减 skill
+ln -s ~/Desktop/skills/flutter-skills/flutter-page-gen .claude/skills/flutter-page-gen
+```
 
 ---
 
