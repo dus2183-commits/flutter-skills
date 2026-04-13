@@ -26,20 +26,50 @@
 
 ## 约定速查
 
+## ★ 代码生成铁律（最重要）
+
+**生成任何 Dart 代码前，必须先读对应的 SKILL.md 文件里的代码模板。**
+不要凭自己的知识写代码，必须按 SKILL.md 段 6 的模板来。
+
+skill 文件在 `~/.claude/skills/flutter-*/SKILL.md`。
+
+### Model: 必须 freezed
+- `@freezed` + `part .freezed.dart` + `part .g.dart` + `factory fromJson`
+- snake_case 字段加 `@JsonKey(name: 'xxx')`
+- 生成后跑 `fvm dart run build_runner build --delete-conflicting-outputs`
+
+### Repository: 必须走 ApiClient
+- 继承 `GetxService`，`final ApiClient _api = Get.find()`
+- 每个方法传 `mockKey` + `CancelToken? cancelToken`
+- path 不带 /api 前缀
+- 不 import app_exception，不 catch 异常
+
+### Binding: 用 tearoff
+- `Get.lazyPut<Xxx>(Xxx.new, fenix: true)`（不用 lambda）
+
+### 页面: GetView 三件套
+- `{name}_page.dart` + `{name}_controller.dart` + `{name}_binding.dart`
+- 路径: `lib/features/{module}/presentation/pages/{page_name}/`
+- 列表用 EasyRefresh（不是 RefreshIndicator）
+- loading/error/empty 三态必须处理
+
 ### 必须
-- ✅ 网络请求走 ApiClient (`Get.find<ApiClient>()`)
+- ✅ 网络请求走 ApiClient + mockKey + cancelToken
+- ✅ Model 用 freezed + @JsonKey
 - ✅ Repository 用 GetxService
-- ✅ 页面用 GetView<Controller>
-- ✅ DI 在 binding 注册
-- ✅ 异常 catch AppException
-- ✅ 列表用 ListView.builder + const
+- ✅ Binding 用 tearoff
+- ✅ 页面用 GetView<Controller> + EasyRefresh
+- ✅ 生成代码前读 SKILL.md 模板
 
 ### 禁止
-- ❌ 直接 `import 'dart:io'` (用 cross_file XFile)
-- ❌ 直接 `new Dio()` (用 ApiClient)
-- ❌ 硬编码中文字符串 (用 .tr)
-- ❌ 在 build 内 Get.find
-- ❌ throw String
+- ❌ 手写 Model class（必须 freezed）
+- ❌ 直接 `new Dio()`（用 ApiClient）
+- ❌ Repository 内 catch 异常
+- ❌ Binding 用 lambda
+- ❌ path 带 /api 前缀
+- ❌ Color.withOpacity（用 withValues）
+- ❌ RefreshIndicator（用 EasyRefresh）
+- ❌ 不看 SKILL.md 凭自己知识写代码
 
 ## 启动
 
