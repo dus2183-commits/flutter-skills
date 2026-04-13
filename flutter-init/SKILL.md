@@ -236,21 +236,57 @@ app.dart 自动显示空 Scaffold,需要把 main.dart 的 initialRoute 改成业
 - `grep -r '{{[A-Z0-9_]*}}' lib/` 应为空
 - `fvm flutter analyze` 应 0 issues
 
-### Step 8 — 选择 CLAUDE.md 模板 (按 code_style)
+### Step 8 — 安装项目级 skill + CLAUDE.md (按 code_style)
 
-根据用户选择的 `code_style` 复制对应的 CLAUDE.md:
+**skill 装到项目级 `.claude/skills/`，不装全局。** 不同项目互不影响。
 
-| code_style | 源文件 | 效果 |
+**8.1 — 选择 CLAUDE.md 模板:**
+
+| code_style | CLAUDE.md | 效果 |
 |---|---|---|
-| `full` | `_claude_templates/CLAUDE_full.md` | 强制 freezed + ApiClient + mockKey + tearoff + EasyRefresh,所有 skill 生效 |
-| `light` | `_claude_templates/CLAUDE_light.md` | 用 GetX 但不强制 freezed/ApiClient,手写 model 和直接 dio 都可以 |
-| `free` | `_claude_templates/CLAUDE_free.md` | 只有目录结构约定,自由发挥 |
+| `full` | `CLAUDE_full.md` | 强制 freezed + ApiClient + mockKey + tearoff + EasyRefresh |
+| `light` | `CLAUDE_light.md` | 用 GetX 但不强制 freezed/ApiClient |
+| `free` | `CLAUDE_free.md` | 只有目录结构,自由发挥 |
 
 ```bash
 cp {skill_dir}/template/_claude_templates/CLAUDE_{code_style}.md {target_dir}/CLAUDE.md
 ```
 
-替换占位符后,CLAUDE.md 就是该项目的 AI 协作规则。不同项目可以有不同规范。
+**8.2 — 安装项目级 skill (软链到 .claude/skills/):**
+
+```bash
+mkdir -p {target_dir}/.claude/skills
+```
+
+按 code_style 装不同数量的 skill:
+
+| code_style | 安装的 skill | 数量 |
+|---|---|---|
+| `full` | 全部 29 个 worker + 6 个 workflow | 35 |
+| `light` | 只装 page-gen / review / lint-fix / health-check / init | 5 |
+| `free` | 不装任何 skill | 0 |
+
+```bash
+# full 模式: 链所有 skill
+for dir in {skill_dir}/flutter-*/; do
+  ln -s "$dir" "{target_dir}/.claude/skills/$(basename $dir)"
+done
+for dir in {skill_dir}/_orchestration/flutter-flow-*/; do
+  ln -s "$dir" "{target_dir}/.claude/skills/$(basename $dir)"
+done
+
+# light 模式: 只链核心 5 个
+for name in flutter-page-gen flutter-review flutter-lint-fix flutter-health-check flutter-init; do
+  ln -s "{skill_dir}/$name" "{target_dir}/.claude/skills/$name"
+done
+
+# free 模式: 不链
+```
+
+这样:
+- **不污染全局** `~/.claude/skills/`
+- **不同项目可以有不同 skill 集合**
+- **删项目 = 删 skill**，干净
 
 ### Step 9 — 处理 .env 文件 (原 Step 8)
 - `.env.dev` 保留开发配置模板,含:
