@@ -35,31 +35,130 @@
 
 ## Quick Start
 
-### 1. 安装
+### 1. 克隆仓库
 ```bash
-git clone <this repo> ~/.claude/skills/flutter-skills
+# 放到任意位置,比如 ~/Desktop/skills/
+git clone <this repo> ~/Desktop/skills/flutter-skills
 ```
 
-### 2. 创建新项目
+### 2. 安装初始化 skill (一次性)
+```bash
+# 只需要装 flutter-init 到全局,其他 skill 会在初始化项目时自动装到项目里
+mkdir -p ~/.claude/skills
+ln -s ~/Desktop/skills/flutter-skills/flutter-init ~/.claude/skills/flutter-init
+ln -s ~/Desktop/skills/flutter-skills/_orchestration/flutter-flow-init ~/.claude/skills/flutter-flow-init
 ```
-你: 帮我新建一个 Flutter 项目 my_app
 
-Claude: [触发 flutter-flow-init workflow]
-  → 收集参数 (项目名/包名/Tab/平台)
-  → dry-run 列出 67 个文件
-  → 用户确认
-  → 复制 template/
-  → 三端编译验证
-  → ✅ 项目 my_app 创建成功
-
-你: 现在做一个公告模块,有列表和详情
-
-Claude: [触发 flutter-flow-feature workflow]
-  → spec → plan → api-design → model-gen → api-gen → page-gen → review
-  → ✅ 公告模块完成,已生成 11 个文件
-
-你: flutter run --dart-define=USE_MOCK=true
+### 3. 创建新项目
+打开 Claude Code,直接说:
 ```
+新建一个 Flutter 项目 my_app
+```
+
+Claude 会问你:
+- 项目名/包名
+- 项目类型: standard (普通) 还是 video (视频)
+- 代码规范: full (严格) / light (宽松) / free (自由)
+- Tab 数量和名称
+
+然后自动:
+- 生成项目骨架 (60+ 文件)
+- **安装对应的 skill 到项目 `.claude/skills/`**
+- 复制对应等级的 CLAUDE.md
+- 三端编译验证
+
+### 4. 做功能
+在项目目录下说:
+```
+做一个公告模块,有列表和详情,后端 Swagger 如下: {...}
+```
+
+Claude 自动走完整流水线:
+```
+spec → plan → api-design → model-gen → api-gen → page-gen → review
+```
+
+### 5. 运行
+```bash
+fvm flutter run --dart-define=USE_MOCK=true
+```
+
+---
+
+## 代码规范等级
+
+| 等级 | 安装的 skill | 强制规则 | 适合场景 |
+|------|-------------|---------|---------|
+| **full** | 全部 35 个 | freezed + ApiClient + mockKey + tearoff + EasyRefresh | 团队正式项目 |
+| **light** | 5 个核心 | GetX 但不强制 freezed/ApiClient | 个人项目、快速原型 |
+| **free** | 无 | 只有目录结构 | Demo、实验 |
+
+**已有项目切换等级?** 换 CLAUDE.md + 增删 `.claude/skills/` 里的软链即可。
+
+---
+
+## Skill 依赖关系
+
+skill 之间有上下游依赖,**不能跳步骤**:
+
+```
+用户需求
+   │
+   ▼
+flutter-spec         需求 → 结构化文档 (docs/specs/{m}.md)
+   │
+   ▼
+flutter-plan         文档 → 任务清单 (docs/plans/{m}.md)
+   │
+   ▼
+flutter-api-design   任务 → 接口契约 (docs/api/{m}.md)
+   │
+   ├──────────────────────────┐
+   ▼                          ▼
+flutter-model-gen          flutter-theme-design
+freezed 实体类               主题配置
+   │
+   ▼
+flutter-api-gen            依赖 model-gen 的输出
+Repository + Binding + Mock
+   │
+   ├──────────────────────────┐
+   ▼                          ▼
+flutter-page-gen           flutter-widget-gen
+页面三件套                   公共组件
+   │
+   ▼
+flutter-test-gen           依赖 repository 的输出
+单元测试
+   │
+   ▼
+flutter-review + flutter-perf-audit
+代码评审 + 性能审计
+```
+
+**快捷方式:** 不想一步步来? 用 `flutter-api-quick` 一键从 Swagger JSON 生成全套 (契约+model+repository+binding+mock)。
+
+**Workflow 自动编排:** 用户只说"做 XX 模块",`flutter-flow-feature` 会自动按依赖顺序调用每个 skill,不需要手动一个个触发。
+
+---
+
+## 独立 skill (无依赖,随时可用)
+
+这些 skill 不依赖其他 skill,可以单独使用:
+
+| Skill | 触发词 |
+|-------|--------|
+| flutter-i18n-gen | "国际化" / "提取中文" |
+| flutter-route-guard | "加登录拦截" / "路由守卫" |
+| flutter-migrate | "重命名模块" / "移动页面" |
+| flutter-mock-gen | "生成 mock 数据" |
+| flutter-env-config | "配置多环境" |
+| flutter-error-code-gen | "生成错误码常量" |
+| flutter-skeleton-gen | "骨架屏" / "shimmer" |
+| flutter-deeplink | "配置深链接" |
+| flutter-changelog | "生成 changelog" |
+| flutter-lint-fix | "格式化代码" |
+| flutter-health-check | "项目体检" |
 
 ---
 
@@ -77,7 +176,7 @@ Claude: [触发 flutter-flow-feature workflow]
 ├──────────────────────────────────────────────────────────┤
 │ L5 Workflow        6 个 flutter-flow-*                    │
 ├──────────────────────────────────────────────────────────┤
-│ L4 Skill           18 个 worker skill                     │
+│ L4 Skill           29 个 worker skill                     │
 ├──────────────────────────────────────────────────────────┤
 │ L3 Knowledge       Context + Artifact + Memory            │
 ├──────────────────────────────────────────────────────────┤
