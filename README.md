@@ -41,12 +41,16 @@
 git clone <this repo> ~/Desktop/skills/flutter-skills
 ```
 
-### 2. 安装初始化 skill (一次性)
+### 2. 安装 (一次性)
 ```bash
-# 只装 init 到全局（其他 skill 在创建项目时自动装到项目级）
 mkdir -p ~/.claude/skills
+
+# 全局装 init（用于创建新项目）
 ln -s ~/Desktop/skills/flutter-skills/flutter-init ~/.claude/skills/flutter-init
 ln -s ~/Desktop/skills/flutter-skills/_orchestration/flutter-flow-init ~/.claude/skills/flutter-flow-init
+
+# 其他 skill 在 init 创建项目时自动复制到项目 .claude/skills/
+# ⚠️ 是复制不是软链（Claude Code 不跟踪软链）
 ```
 
 ### 3. 创建新项目

@@ -252,30 +252,40 @@ app.dart 自动显示空 Scaffold,需要把 main.dart 的 initialRoute 改成业
 cp {skill_dir}/template/_claude_templates/CLAUDE_{code_style}.md {target_dir}/CLAUDE.md
 ```
 
-**8.2 — 安装项目级 skill:**
+**8.2 — 复制 skill 到项目级（必须 cp，不能软链）:**
+
+⚠️ **Claude Code 不跟踪软链，必须直接复制 SKILL.md 文件。**
 
 ```bash
 mkdir -p {target_dir}/.claude/skills
 ```
 
-| code_style | 安装的 skill | 数量 |
+| code_style | 复制的 skill | 数量 |
 |---|---|---|
 | `full` | 全部 29 个 worker + 6 个 workflow | 35 |
 | `light` | page-gen / review / lint-fix / health-check | 4 |
 | `free` | 不装 | 0 |
 
 ```bash
-# full 模式
+# full 模式: 复制所有 SKILL.md
 for dir in {skill_dir}/flutter-*/; do
-  [ -f "$dir/SKILL.md" ] && ln -s "$dir" "{target_dir}/.claude/skills/$(basename $dir)"
+  name=$(basename "$dir")
+  if [ -f "$dir/SKILL.md" ]; then
+    mkdir -p "{target_dir}/.claude/skills/$name"
+    cp "$dir/SKILL.md" "{target_dir}/.claude/skills/$name/"
+  fi
 done
 for dir in {skill_dir}/_orchestration/flutter-flow-*/; do
-  ln -s "$dir" "{target_dir}/.claude/skills/$(basename $dir)"
+  name=$(basename "$dir")
+  if [ -f "$dir/SKILL.md" ]; then
+    mkdir -p "{target_dir}/.claude/skills/$name"
+    cp "$dir/SKILL.md" "{target_dir}/.claude/skills/$name/"
+  fi
 done
 ```
 
 init 完成后提示用户：**"请在项目目录下重新打开 Claude Code 开始开发"**
-（因为 `.claude/settings.json` 权限配置 + `.claude/skills/` 需要 Claude Code 重新加载）
+（因为 `.claude/settings.json` 权限 + `.claude/skills/` 需要重新加载）
 
 ### Step 9 — 处理 .env 文件 (原 Step 8)
 - `.env.dev` 保留开发配置模板,含:
