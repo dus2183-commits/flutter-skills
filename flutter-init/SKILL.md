@@ -159,6 +159,9 @@ fvm flutter create --platforms=android,ios,web --org {package_org} --project-nam
   cp -R {skill_dir}/template/scripts    {target_dir}/                # ★ 新增: setup/run/build/clean 脚本
   cp -R {skill_dir}/template/mock       {target_dir}/
   cp -R {skill_dir}/template/docs       {target_dir}/
+  cp -R {skill_dir}/_design             {target_dir}/                # ★ skill 引用的设计文档
+  cp -R {skill_dir}/_knowledge          {target_dir}/                # ★ artifact/context 模板
+  cp -R {skill_dir}/_governance         {target_dir}/                # ★ checklist + hooks
   cp -R {skill_dir}/template/web/js     {target_dir}/web/            # 只加 js,不覆盖 index.html
   cp {skill_dir}/template/pubspec.yaml  {target_dir}/
   cp {skill_dir}/template/.fvmrc        {target_dir}/                # ★ 新增: 锁定 Flutter 3.27.2
