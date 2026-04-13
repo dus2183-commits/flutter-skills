@@ -41,17 +41,32 @@
 git clone <this repo> ~/Desktop/skills/flutter-skills
 ```
 
-### 2. 安装 (一次性)
+### 2. 安装到项目（一行命令）
+
+**新项目初次安装：**
 ```bash
-mkdir -p ~/.claude/skills
-
-# 全局装 init（用于创建新项目）
-ln -s ~/Desktop/skills/flutter-skills/flutter-init ~/.claude/skills/flutter-init
-ln -s ~/Desktop/skills/flutter-skills/_orchestration/flutter-flow-init ~/.claude/skills/flutter-flow-init
-
-# 其他 skill 在 init 创建项目时自动复制到项目 .claude/skills/
-# ⚠️ 是复制不是软链（Claude Code 不跟踪软链）
+cd your_project
+bash <(curl -s https://raw.githubusercontent.com/dus2183-commits/flutter-skills/main/scripts/install_skills.sh)
 ```
+
+**已有项目更新到最新版：**
+```bash
+cd your_project
+bash <(curl -s https://raw.githubusercontent.com/dus2183-commits/flutter-skills/main/scripts/update_skills.sh)
+```
+
+安装后重新打开 Claude Code 即可使用。
+
+**install 做了什么：**
+- 从 GitHub 拉取最新 flutter-skills
+- 复制 35 个 SKILL.md 到项目 `.claude/skills/`
+- 复制 `_design` + `_knowledge` + `_governance` 到项目根目录
+- 生成 CLAUDE.md（full 规范）
+- 安装 flutter-init 到全局（用于创建新项目）
+
+**update 做了什么：**
+- 更新所有 SKILL.md + `_design`/`_knowledge`/`_governance`
+- 不动 CLAUDE.md 和 settings.json（保留你的自定义）
 
 ### 3. 创建新项目
 打开 Claude Code,直接说:
