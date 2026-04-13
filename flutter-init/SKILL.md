@@ -251,56 +251,25 @@ app.dart 自动显示空 Scaffold,需要把 main.dart 的 initialRoute 改成业
 - `grep -r '{{[A-Z0-9_]*}}' lib/` 应为空
 - `fvm flutter analyze` 应 0 issues
 
-### Step 8 — 安装项目级 skill + CLAUDE.md (按 code_style)
+### Step 8 — 从 GitHub 安装 skill + CLAUDE.md + 设计文档 ★ 关键
 
-**skill 装到项目级 `.claude/skills/`，不污染全局。**
-
-**8.1 — 选择 CLAUDE.md:**
-
-| code_style | CLAUDE.md | 效果 |
-|---|---|---|
-| `full` | `CLAUDE_full.md` | 强制 freezed + ApiClient + mockKey + tearoff，所有 skill 生效 |
-| `light` | `CLAUDE_light.md` | 用 GetX 但不强制 freezed/ApiClient |
-| `free` | `CLAUDE_free.md` | 只有目录结构，自由发挥 |
+**直接跑 install_skills.sh 脚本，一步搞定所有安装。**
 
 ```bash
-cp {skill_dir}/template/_claude_templates/CLAUDE_{code_style}.md {target_dir}/CLAUDE.md
+cd {target_dir}
+bash <(curl -s https://raw.githubusercontent.com/dus2183-commits/flutter-skills/main/scripts/install_skills.sh)
 ```
 
-**8.2 — 复制 skill 到项目级（必须 cp，不能软链）:**
+这个脚本会自动:
+1. 从 GitHub clone flutter-skills 仓库
+2. 复制 35 个 SKILL.md 到 `.claude/skills/`（cp 不是软链）
+3. 复制 `_design` + `_knowledge` + `_governance` 到项目根目录
+4. 根据 `code_style` 选择 CLAUDE.md（full/light/free）
+5. 安装全局 flutter-init（如不存在）
 
-⚠️ **Claude Code 不跟踪软链，必须直接复制 SKILL.md 文件。**
+**如果 curl 或 GitHub 不通，必须报错中止，不能跳过！** skill 没装项目就不能用。
 
-```bash
-mkdir -p {target_dir}/.claude/skills
-```
-
-| code_style | 复制的 skill | 数量 |
-|---|---|---|
-| `full` | 全部 29 个 worker + 6 个 workflow | 35 |
-| `light` | page-gen / review / lint-fix / health-check | 4 |
-| `free` | 不装 | 0 |
-
-```bash
-# full 模式: 复制所有 SKILL.md
-for dir in {skill_dir}/flutter-*/; do
-  name=$(basename "$dir")
-  if [ -f "$dir/SKILL.md" ]; then
-    mkdir -p "{target_dir}/.claude/skills/$name"
-    cp "$dir/SKILL.md" "{target_dir}/.claude/skills/$name/"
-  fi
-done
-for dir in {skill_dir}/_orchestration/flutter-flow-*/; do
-  name=$(basename "$dir")
-  if [ -f "$dir/SKILL.md" ]; then
-    mkdir -p "{target_dir}/.claude/skills/$name"
-    cp "$dir/SKILL.md" "{target_dir}/.claude/skills/$name/"
-  fi
-done
-```
-
-init 完成后提示用户：**"请在项目目录下重新打开 Claude Code 开始开发"**
-（因为 `.claude/settings.json` 权限 + `.claude/skills/` 需要重新加载）
+**脚本执行完后会自动提示用户重开 Claude Code。**
 
 ### Step 9 — 处理 .env 文件
 - `.env.dev` 保留开发配置模板,含:
