@@ -5,7 +5,7 @@
 ## ⛔ 最高优先级规则
 
 1. **做功能必须走流水线**：spec → plan → api-design → model-gen → api-gen → page-gen，禁止跳步直接写代码
-2. **多模块逐个做**：做完 A 再做 B，不要并行
+2. **多模块可并行但步骤不能跳**：用 Agent 并行做多个模块，每个模块内部严格按顺序走
 3. **每步读 SKILL.md 模板**：生成代码前必须读对应 skill 的段 6 代码模板
 4. **每步产出文件**：spec → docs/specs/{m}.md, model → .model.dart, repo → _repository.dart
 

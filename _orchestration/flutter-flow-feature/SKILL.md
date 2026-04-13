@@ -15,11 +15,11 @@ owner: @lead
 
 ## ⛔ 铁律（违反任何一条立即停止）
 
-1. **禁止跳步骤直接写代码。** 必须按 spec → plan → api-design → model-gen → api-gen → page-gen 顺序执行，每一步都要产出对应的文档/代码文件。
-2. **禁止同时做多个模块。** 用户要求做 N 个模块时，必须**逐个完成**：做完模块 A 的全部步骤，再开始模块 B。不要并行。
-3. **每一步必须读对应的 SKILL.md。** 生成代码前，先读 `~/.claude/skills/flutter-{skill}/SKILL.md` 或项目 `.claude/skills/flutter-{skill}/SKILL.md` 里的段 6 代码模板，不要凭自己的知识写。
-4. **每一步必须产出文件。** spec 产出 `docs/specs/{m}.md`，plan 产出 `docs/plans/{m}.md`，api-design 产出 `docs/api/{m}.md`，model-gen 产出 `.model.dart`，api-gen 产出 `_repository.dart` + mock JSON，page-gen 产出三件套。没有文件产出 = 没做。
-5. **禁止把多个 skill 的工作合并成一步。** 比如不能"同时生成 model + repository + 页面"，必须分 3 步走。
+1. **禁止跳步骤直接写代码。** 每个模块必须按 spec → plan → api-design → model-gen → api-gen → page-gen 顺序执行。不能跳过 spec 直接写 model，不能跳过 api-design 直接写 repository。
+2. **多模块可以并行，但每个模块内部必须串行。** 用 Agent tool 同时启动多个模块的流水线，每个 Agent 内部严格按步骤走。例如：Agent A 做 auth (spec→plan→...→page-gen)，同时 Agent B 做 post (spec→plan→...→page-gen)。
+3. **每一步必须读对应的 SKILL.md。** 生成代码前，先读 `.claude/skills/flutter-{skill}/SKILL.md` 里的段 6 代码模板，按模板写，不要凭自己的知识。
+4. **每一步必须产出文件。** spec → `docs/specs/{m}.md`，plan → `docs/plans/{m}.md`，api-design → `docs/api/{m}.md`，model-gen → `.model.dart`，api-gen → `_repository.dart` + mock JSON，page-gen → 三件套。没有文件产出 = 没做。
+5. **禁止把多个 skill 的工作合并成一步。** 不能"同时生成 model + repository + 页面"，必须分步走。
 
 ---
 
