@@ -1,6 +1,8 @@
 ---
 name: flutter-api-gen
-description: 接口契约 → Repository 类(GetX 风格) + Mock JSON 数据。用户说"生成接口请求"、"生成 repository"或 model-gen 完成后触发。严格调用 ApiClient,自动 catch AppException,生成 GetX binding,产出可直接用的 data 层。
+description: |
+  读取接口契约文档，生成 Repository 调用代码 + Binding + Mock JSON。
+  触发: "生成 Repository" / "生成 api" / "生成调用代码"。
 type: skill
 stage: 4
 model: sonnet
@@ -10,89 +12,123 @@ owner: @b
 category: generator
 ---
 
-# 接口请求生成 (flutter-api-gen)
-
-> ⚠️ **博龙的样板 v1** — 这是 ApiClient 接口的"使用层",**严格按 _design/api_client_signature.dart 生成代码**。
-
----
+# API 代码生成 (flutter-api-gen)
 
 ## 1. 触发场景
 
-- "生成 XX 模块的 repository"
-- "生成接口请求代码"
-- "生成 api 调用"
-- model-gen 完成后 workflow 自动触发
-
----
+- "生成 XX 模块的 Repository" / "生成 api 调用代码"
+- "根据接口契约生成代码"
+- "把契约文档转成 Repository"
+- "这个 URL 的接口转成调用代码"
+- "这个 curl 命令生成 Repository"
 
 ## 2. 前置必读
 
 - `docs/_context/tech-stack.md`
 - `docs/_context/conventions.md`
-- `docs/api/{module}.md` ★ 必须 (上游契约)
-- `lib/features/{module}/data/models/*.dart` ★ 必须 (上游 model)
-- `_design/api_client_signature.dart` ★ **博龙的圣经,一定要读**
-- `_design/app_exception.dart` (异常体系)
-
----
+- `docs/_context/decisions.md`
+- `docs/_context/glossary.md`
+- `_design/api_client_signature.dart`（ApiClient 方法签名契约）
+- `_design/app_exception.dart`（AppException 异常类型）
+- `docs/api/{module}.md`（如输入为 .md 契约文档）
 
 ## 3. 输入
 
-**必填:**
-- `module_name` (string) — 与 docs/api/{module}.md 文件名一致
+**必填参数：**
+- `module_name` (string) — 模块英文名，snake_case
+- `source` (string) — 用户输入（.md 文件路径 / JSON 字符串 / URL / curl 命令）
 
-**自动从上游读:**
-- 接口列表 (从 docs/api/{m}.md)
-- mock keys (从 docs/api/{m}.md)
-- model 类名 (从 lib/features/{m}/data/models/)
-- 错误码段位 (从 docs/api/{m}.md)
+**可选参数：**
+- `force_overwrite` (bool, default false) — 是否覆盖已有 Repository 文件
+- `repo_output_path` (string, default `lib/features/{module}/data/repositories/`) — Repository 输出目录
+- `mock_output_path` (string, default `mock/{module}/`) — Mock JSON 输出目录
 
----
+**输入分流：**
+
+| 形式 | 识别特征 | 解析方式 |
+|---|---|---|
+| .md 契约文档路径 | 以 `/` 或 `./` 开头，或 `.md` 后缀 | Read 文件，提取接口清单 |
+| JSON 字符串 | 包含 `{` 和 `}` 的 JSON | 解析 JSON，推断接口结构 |
+| curl 命令 | 以 `curl` 开头 | Bash 执行拿到响应 JSON，推断接口 |
+| URL | 以 http/https 开头（非 curl） | WebFetch 抓取，按内容类型分流 |
 
 ## 4. 工作流程
 
-### Step 1 — 读上下文 + 接口契约 + 已生成的 model
-- 必须先确认 `lib/features/{m}/data/models/` 已存在 (否则 STOP,提示先跑 model-gen)
+**Pipeline:** 任何输入 → 解析 → 提取接口清单 → 推断 ApiClient 方法 → 检查 model → dry-run → 生成 Repository + Binding + Mock JSON
 
-### Step 2 — 解析每个接口
-对每个接口提取:
-- HTTP 方法 (POST / GET / DELETE)
-- 路径
-- mock key
-- 请求字段 (用什么 model)
-- 响应字段 (用什么 model)
-- 是否分页 (是否继承 PageReq/PageResp)
+**Step 1 — 读 context + 检测 ApiClient 签名**
+读取段 2 列出的所有前置文件。重点读 `_design/api_client_signature.dart` 确认方法签名。
 
-### Step 3 — 选择 ApiClient 方法
-| 接口特征 | 用哪个 ApiClient 方法 |
-|---|---|
-| GET 单对象 | `api.get<T>()` |
-| POST JSON 单对象 | `api.postJson<T>()` |
-| POST Form 单对象 | `api.postForm<T>()` |
-| 列表分页 | `api.getList<T>()` |
-| DELETE | `api.delete<T>()` |
-| 文件上传 | `api.upload()` |
+⚠️ **ApiClient 签名变更检测：** 将 `_design/api_client_signature.dart` 中的方法签名与段 6 模板中使用的调用方式对比。如果签名已变更（参数增减、类型变化），**STOP** 并提示用户更新 skill 模板后再继续。
+
+**Step 2 — 解析输入，提取接口清单**
+按段 3 的输入分流规则判断输入形式：
+- .md → Read 文件，提取每个接口的路径、Mock Key、请求字段、响应结构
+- JSON → 解析 JSON，推断接口结构
+- curl → Bash 执行拿到响应 JSON，推断接口
+- URL → fetch 后按内容分流
+
+归一化为接口清单：
+
+    模块名: announce
+    实体类名: Announce
+    接口清单:
+      - 接口名: getList
+        路径: POST /announce/list          # ⚠️ 不带 /api（baseUrl 已含 apiPrefix）
+        Mock Key: announce/list
+        ApiClient 方法: getList
+        请求字段: [{name: pageReq, type: PageReq, required: true}, {name: keyword, type: String?, required: false}]
+        返回类型: PageResp<Announce>
+      - 接口名: getDetail
+        路径: GET /announce/detail          # ⚠️ 不带 /api
+        Mock Key: announce/detail
+        ApiClient 方法: get
+        请求字段: [{name: id, type: String, required: true}]
+        返回类型: Announce
+
+**Step 3 — 推断 ApiClient 方法**
+按以下规则自动推断每个接口对应的 ApiClient 方法：
+
+| 契约特征 | ApiClient 方法 | Repository 返回类型 |
+|---|---|---|
+| 响应 data 含 `list` + `total` + `page` + `pageSize` | `getList<T>` | `PageResp<T>` |
+| HTTP GET + 响应 data 为对象 | `get<T>` | `T` |
+| HTTP POST + 响应 `data: null` | `postJson<void>` | `void` |
+| HTTP POST + 响应 data 为对象 | `postJson<T>` | `T` |
+| HTTP POST + Content-Type 为 `application/x-www-form-urlencoded`（或契约明确标注 form） | `postForm<T>` | `T` |
+| HTTP DELETE + 响应 `data: null` | `delete<void>` | `void` |
+| HTTP DELETE + 响应 data 为对象 | `delete<T>` | `T` |
 
 ⚠️ **不允许直接 `new Dio()` 或 import 'package:dio/dio.dart' 业务级**
 
-### Step 4 — 生成 Repository 类
-按段 6 模板,Repository:
-- 继承 `GetxService`
-- 字段: `final ApiClient _api = Get.find();`
-- **每个接口一个方法**(契约里有几个接口,Repository 就要有几个方法 — 不要漏!)
-- 方法签名包含 `CancelToken? cancelToken`
-- 必须传 `mockKey` 参数
-- 用 `fromJson` 转 model
-- **path 不带 `/api` 前缀** ★(baseUrl 已含 apiPrefix)
+> **重要：**
+> - 推断结果必须在 Step 5 dry-run 中展示给用户确认。如果推断不确定（如 POST 但不确定用 postJson 还是 postForm），AskUser 确认。
+> - 如果响应结构类似分页但字段名非标准（如 `items` 而非 `list`，`count` 而非 `total`），AskUser 确认是否用 `getList`（要求后端严格返回 `{list, total, page, pageSize}` 结构）还是用 `postJson` 自行处理。
+> - 如果契约中同一模块引用了多个实体类型，每个方法的 `fromJson` 应引用正确的 model 类，Step 4 需检查所有引用的 model 文件是否存在。
 
-### Step 5 — 生成 Binding
-用于 GetX 路由注册时把 Repository 注入到 controller。
-**Binding 用 tearoff:** `Get.lazyPut<XxxRepository>(XxxRepository.new, fenix: true);`
+**Step 4 — 检查 model 文件**
+检查 `lib/features/{module}/data/models/{entity}.model.dart` 是否存在。
+- 存在 → 继续
+- 不存在 → 提示用户先运行 `flutter-model-gen` 生成实体类，stop
 
-### Step 6 — 更新 pubspec.yaml 注册 mock 子目录 ★ 关键!
+**Step 5 — Dry-run (AskUser)**
+列出将生成的文件路径 + 每个 Repository 方法签名摘要 + Mock 文件列表。
 
-**Flutter assets 不递归子目录**,只声明 `mock/` 不包括 `mock/announce/`。
-必须在 pubspec.yaml 的 assets 段加该模块的 mock 目录:
+使用 AskUserQuestion 提供三个选项：
+1. **确认生成** — 进入 Step 6
+2. **不要生成** — stop，不生成文件
+3. **补充其他项** — 回到 Step 3，用户修改后重新 dry-run
+
+**Step 6 — 写入 Repository + Binding + Mock JSON**
+按段 6 的代码模板生成：
+- `{repo_output_path}/{module}_repository.dart` — Repository 类
+- `{repo_output_path}/{module}_repository.binding.dart` — GetX Binding
+- `{mock_output_path}/{action}.json` — 每个接口一个 Mock 文件
+
+**Step 7 — 更新 pubspec.yaml 注册 mock 子目录** ★ 关键!
+
+**Flutter assets 不递归子目录**，只声明 `mock/` 不包括 `mock/announce/`。
+必须在 pubspec.yaml 的 assets 段加该模块的 mock 目录：
 
 ```yaml
 flutter:
@@ -101,54 +137,44 @@ flutter:
     - mock/announce/   # ← 必须显式加这一行!
 ```
 
-操作:
+操作：
 1. 读 pubspec.yaml
 2. 找 `assets:` 段
-3. 检查是否已有 `- mock/{module}/`,如无则加
+3. 检查是否已有 `- mock/{module}/`，如无则加
 4. 保持其他 assets 不变
 
-**漏这一步的后果:**
+**漏这一步的后果：**
 ```
 Error while trying to load an asset: Flutter Web engine failed to fetch
 "assets/mock/announce/list.json". HTTP request succeeded, but the server
 responded with HTTP status 404.
 ```
 
-### Step 7 — 检查 mock JSON 数据
-读 `mock/{module}/*.json`,确保每个接口对应的文件存在且数据符合 model 字段。
-**不存在或字段不符 → 标记 ⚠️ 警告(不阻断)**。
+**Step 8 — 自检**
+跑段 8 checklist，逐项验证。
 
-### Step 8 — 写入文件
-
-### Step 9 — 自检 (跑段 8 checklist)
-
-### Step 10 — 联动
-建议下一步用 `flutter-page-gen` 生成页面。
-
----
+**Step 9 — 输出总结**
+告诉用户生成了什么 + 建议下一步。
 
 ## 5. 输出产物
 
-```
-lib/features/{module}/data/repositories/
-├── {module}_repository.dart            主 Repository
-└── {module}_repository.binding.dart    GetX binding
-```
+    {repo_output_path}/                              — 默认 lib/features/{module}/data/repositories/
+    ├── {module}_repository.dart                     — Repository 类
+    └── {module}_repository.binding.dart             — GetX Binding
 
-示例:
-```
-lib/features/announce/data/repositories/
-├── announce_repository.dart
-└── announce_repository.binding.dart
-```
+    {mock_output_path}/                              — 默认 mock/{module}/
+    ├── {action1}.json                               — 接口 1 的 Mock 数据
+    ├── {action2}.json                               — 接口 2 的 Mock 数据
+    └── ...
 
----
+## 6. 代码模板
 
-## 6. 代码模板 (v1 基础版)
+### Repository 模板
 
-### 6.1 Repository 类
+以公告模块为例：
 
-```dart
+`````dart
+// announce_repository.dart
 import 'package:dio/dio.dart' show CancelToken;
 import 'package:get/get.dart';
 
@@ -167,20 +193,22 @@ import '../models/announce.model.dart';
 /// 自动走加密 + Mock 拦截器,业务层不感知。
 ///
 /// ⚠️ path 规则:**不要带 /api 前缀**
-///   - ApiClient 的 baseUrl 已经是 `https://host.com/api`(含 apiPrefix)
+///   - ApiClient 的 baseUrl 已经是 `https://host.com/api`（含 apiPrefix）
 ///   - Repository 的 path 只写**业务部分** `/announce/list`
 ///   - 错误示例: `/api/announce/list` → 实际请求 `/api/api/announce/list` 404
 class AnnounceRepository extends GetxService {
   final ApiClient _api = Get.find();
 
-  /// 公告列表 (分页)
+  /// 公告列表（分页）
   Future<PageResp<Announce>> getList({
     required PageReq pageReq,
+    String? keyword,
     CancelToken? cancelToken,
   }) async {
     return _api.getList<Announce>(
       path: '/announce/list',  // ⚠️ 不带 /api
       pageReq: pageReq,
+      extraParams: keyword != null ? {'keyword': keyword} : null,
       mockKey: 'announce/list',
       fromJson: (json) => Announce.fromJson(json as Map<String, dynamic>),
       cancelToken: cancelToken,
@@ -214,12 +242,42 @@ class AnnounceRepository extends GetxService {
       cancelToken: cancelToken,
     );
   }
+
+  /// 提交反馈（postForm 示例）
+  Future<void> submitFeedback({
+    required String id,
+    required String content,
+    CancelToken? cancelToken,
+  }) async {
+    await _api.postForm<void>(
+      path: '/announce/feedback',  // ⚠️ 不带 /api
+      data: {'id': id, 'content': content},
+      mockKey: 'announce/feedback',
+      fromJson: (_) {},
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// 删除公告（delete + void 示例）
+  Future<void> remove({
+    required String id,
+    CancelToken? cancelToken,
+  }) async {
+    await _api.delete<void>(
+      path: '/announce/remove',  // ⚠️ 不带 /api
+      data: {'id': id},
+      mockKey: 'announce/remove',
+      fromJson: (_) {},
+      cancelToken: cancelToken,
+    );
+  }
 }
-```
+`````
 
-### 6.2 Binding
+### Binding 模板
 
-```dart
+`````dart
+// announce_repository.binding.dart
 import 'package:get/get.dart';
 
 import 'announce_repository.dart';
@@ -237,157 +295,161 @@ import 'announce_repository.dart';
 class AnnounceRepositoryBinding extends Bindings {
   @override
   void dependencies() {
-    // 用 tearoff 而非 lambda (避免 unnecessary_lambdas lint)
+    // 用 tearoff 而非 lambda（避免 unnecessary_lambdas lint）
     Get.lazyPut<AnnounceRepository>(AnnounceRepository.new, fenix: true);
   }
 }
-```
+`````
 
-### 6.3 业务层调用示例(写在注释里给用户参考)
+### Mock JSON 模板
 
-```dart
-// 在 controller 或其他 service 中:
-final repo = Get.find<AnnounceRepository>();
-
-try {
-  final resp = await repo.getList(pageReq: const PageReq());
-  // 处理 resp.list / resp.total / resp.hasMore
-} on CancelException {
-  // 静默,不提示
-} on AuthException {
-  Get.toNamed('/login');
-} on BusinessException catch (e) {
-  Get.snackbar('提示', e.userMessage);
-} on AppException catch (e) {
-  Get.snackbar('错误', e.userMessage);
+`````json
+// mock/announce/list.json
+{
+  "status": "y",
+  "data": {
+    "list": [
+      {
+        "id": "65f7a8b9c1d2e3f4",
+        "title": "系统升级公告",
+        "content": "<p>...</p>",
+        "publishAt": "2026-04-10T10:00:00Z",
+        "isRead": false
+      }
+    ],
+    "total": 100,
+    "page": 1,
+    "pageSize": 20
+  }
 }
-```
+`````
 
----
+`````json
+// mock/announce/detail.json
+{
+  "status": "y",
+  "data": {
+    "id": "65f7a8b9c1d2e3f4",
+    "title": "系统升级公告",
+    "content": "<p>详细内容...</p>",
+    "publishAt": "2026-04-10T10:00:00Z",
+    "isRead": false,
+    "author": "运营团队"
+  }
+}
+`````
+
+`````json
+// mock/announce/markRead.json
+{
+  "status": "y",
+  "data": null
+}
+`````
+
+### 模板规则
+
+**Repository 规则：**
+- 类名 `{Module}Repository extends GetxService`
+- `final ApiClient _api = Get.find()` 获取 ApiClient 实例
+- 每个方法最后一个参数为 `CancelToken? cancelToken`
+- **不 catch 异常** — Repository 不 try-catch，让 controller 上层统一处理
+- **不 import `app_exception.dart`** — Repository 不 catch，引了会触发 unused_import lint
+- `fromJson` 统一写法: `(json) => Xxx.fromJson(json as Map<String, dynamic>)`
+- `void` 返回的接口: `fromJson: (_) {}`
+- 列表接口: 分页参数用 `PageReq`，额外请求参数用 `extraParams`
+- GET 接口: 请求参数走 `query`
+- POST 接口: 请求参数走 `data`
+- import 路径: 相对路径引 model (`../models/xxx.model.dart`)
+- **path 不带 `/api` 前缀** — baseUrl 已含 apiPrefix，重复会 `/api/api/` 404
+
+**Binding 规则：**
+- 类名 `{Module}RepositoryBinding extends Bindings`
+- **用 tearoff:** `Get.lazyPut<XxxRepository>(XxxRepository.new, fenix: true)` — 避免 unnecessary_lambdas lint
+- `fenix: true` 必须加 — 切路由后实例被销毁，再次进入不会崩
+- 文件名 `{module}_repository.binding.dart`
+
+**Mock JSON 规则：**
+- 直接复制契约文档中的响应结构示例
+- 保持 `status` + `data` 包装结构
+- 文件名与 Mock Key 的 action 部分一致（如 `announce/list` → `list.json`）
+
+**ApiClient 方法参数映射：**
+
+| ApiClient 方法 | 必填参数 | 可选参数 |
+|---|---|---|
+| `get<T>` | path, mockKey, fromJson | query, cancelToken, encrypt |
+| `postJson<T>` | path, data, mockKey, fromJson | cancelToken, encrypt |
+| `postForm<T>` | path, data, mockKey, fromJson | cancelToken, encrypt |
+| `getList<T>` | path, pageReq, mockKey, fromJson | extraParams, cancelToken, encrypt |
+| `delete<T>` | path, mockKey, fromJson | data, cancelToken, encrypt |
 
 ## 7. 不做什么
 
-- ❌ **不直接 `new Dio()`** — 必须 `Get.find<ApiClient>()`
-- ❌ **不直接 import `package:dio/dio.dart`** (除了 type re-export 如 `show CancelToken`)
-- ❌ 不在 Repository 内 catch 异常 (让上层 catch)
-- ❌ 不在 Repository 内调 `Get.snackbar` (那是 UI 的事)
-- ❌ 不写业务逻辑 (Repository 只做数据访问,业务在 controller)
-- ❌ 不修改 model 文件
-- ❌ 不修改 lib/core/network/
-- ❌ 不自动跑路由注册 (那是 page-gen 的事)
-- ❌ 不直接读 .json 文件 (mock 是 ApiClient 内部的事)
-- ❌ 不 throw String
-
----
+- ❌ 不生成 model 实体类（交给 flutter-model-gen）
+- ❌ 不生成 Controller / Page（交给 flutter-page-gen）
+- ❌ 不修改已有 Repository 文件（除非用户明确要求覆盖）
+- ❌ 不直接 import Dio（只通过 ApiClient 调用）
+- ❌ 不添加自定义错误处理逻辑（AppException 由 ApiClient 拦截器统一处理）
+- ❌ 不生成接口契约文档（交给 flutter-api-design）
+- ❌ 不生成 upload/download Repository 方法（文件上传下载需手动实现或使用专用 skill）
 
 ## 8. 自检 Checklist
 
-- [ ] **path 不带 `/api` 前缀** ★ (baseUrl 已含 apiPrefix,重复会 /api/api/)
-- [ ] **必须更新 pubspec.yaml 注册 mock 子目录** ★ — 加 `- mock/{module}/`(Flutter assets 不递归)
-- [ ] **必须生成完整方法**(spec 里的所有接口都要,不能漏 markRead 等)
-- [ ] Repository extends GetxService
-- [ ] 字段用 `final ApiClient _api = Get.find();`
+- [ ] **path 不带 `/api` 前缀** ★（baseUrl 已含 apiPrefix，重复会 /api/api/ 404）
+- [ ] **必须更新 pubspec.yaml 注册 mock 子目录** ★ — 加 `- mock/{module}/`（Flutter assets 不递归）
+- [ ] **必须生成完整方法**（契约里的所有接口都要，不能漏）
+- [ ] Repository 类继承 `GetxService`
+- [ ] 字段用 `final ApiClient _api = Get.find()`
+- [ ] 使用 `Get.find<ApiClient>()` 获取实例，未直接 new Dio()
+- [ ] 每个方法签名与 `api_client_signature.dart` 一致
 - [ ] 每个方法都传 `mockKey` 参数
 - [ ] 每个方法都传 `cancelToken` 参数
 - [ ] 用了 `fromJson:` 而非 `as Map`
-- [ ] 没有 try-catch (让上层处理)
+- [ ] **没有 try-catch**（让 controller 上层处理）
+- [ ] **没有 import `app_exception.dart`**（Repository 不 catch，引了会触发 unused_import）
 - [ ] 没有直接 `new Dio()`
-- [ ] 没有 `package:dio/dio.dart` 直接 import (除 type)
-- [ ] **没有 import `app_exception.dart`** (Repository 不 catch,引了会触发 unused_import)
-- [ ] **Binding 用 tearoff** (`AnnounceRepository.new` 而非 `() => AnnounceRepository()`)
+- [ ] 没有 `package:dio/dio.dart` 直接 import（除 `show CancelToken`）
+- [ ] `fromJson` 写法统一: `(json) => Xxx.fromJson(json as Map<String, dynamic>)`
+- [ ] 列表接口用 `getList`，返回 `PageResp<T>`
+- [ ] void 返回的接口 `fromJson: (_) {}`
+- [ ] Mock JSON 保持 `{status, data}` 包装结构
+- [ ] 每个接口生成了对应的 Mock JSON 文件
+- [ ] **Binding 用 tearoff**（`XxxRepository.new` 而非 `() => XxxRepository()`）
+- [ ] **Binding 有 `fenix: true`**
 - [ ] Binding 文件存在
 - [ ] 路径正确: `lib/features/{m}/data/repositories/`
-- [ ] 文件名 snake_case + `.dart` 后缀
+- [ ] 文件名 snake_case，类名 PascalCase
+- [ ] import 路径正确（model 用相对路径）
+- [ ] 每个方法最后一个命名参数为 `CancelToken? cancelToken`
 - [ ] dart analyze 0 errors
-
----
 
 ## 9. 失败处理
 
-**ASK_USER 时机:**
-- model 不存在 (应该先跑 model-gen)
-- 接口契约里有字段类型推断不出
-- mock JSON 与 model 字段不匹配 (是否要修 mock?)
+**何时 ask user：**
+- ApiClient 方法推断不确定时（如 POST 不确定用 postJson 还是 postForm）
+- 检测到将覆盖已有 Repository 文件时
+- 输入模糊，无法确定接口数量或字段时
 
-**STOP 时机:**
-- docs/api/{m}.md 不存在
-- lib/features/{m}/data/models/ 不存在
-- ApiClient 接口签名变了 (检测 _design/api_client_signature.dart 变更)
+**何时 stop：**
+- model 文件不存在（提示先跑 flutter-model-gen）
+- .md 文件不存在或内容无法解析
+- JSON 格式非法
+- URL 抓取失败
+- 契约中包含 upload/download 接口（提示需手动实现）
+- **ApiClient 接口签名变了**（检测 `_design/api_client_signature.dart` 与模板不一致）
 
-**ROLLBACK:**
-- 自检失败时删除生成的 .repository.dart 和 .binding.dart
-
----
+**何时 rollback：**
+- 自检失败 → 删除本次新增的文件
+- 写入中失败 → 如有 git，`git checkout` 恢复；如无 git，删除不完整文件
 
 ## 10. 联动
 
-**成功后建议:**
-> "Repository 生成完成: lib/features/{m}/data/repositories/
->   - {N} 个方法
->   - GetX binding 已生成
->   - 用 mock 数据可立即跑通
->
-> 下一步: 用 flutter-page-gen 生成页面"
+**成功后建议：**
+> "Repository + Mock 生成完成。建议下一步用 `flutter-page-gen` 生成页面。"
 
-**上游:** flutter-model-gen
-**下游:** flutter-page-gen
+**失败后回退：**
+> "生成失败。请检查契约文档格式，或回到 `flutter-api-design` 检查契约。"
 
----
-
-## 11. 🚧 给博龙: 扩展路线图
-
-**v1 (渡已写) — 基础够用:**
-- ✅ 5 个 ApiClient 方法的封装 (get / postJson / postForm / getList / delete)
-- ✅ Repository extends GetxService
-- ✅ Binding 自动生成
-- ✅ cancelToken 透传
-- ✅ mockKey 自动注入
-- ✅ fromJson 转 model
-
-**v2 (你应该加) — 第二周做:**
-- ⏳ **upload 方法封装** — 文件上传 (调 `api.upload()`,接收 XFile,带 onProgress)
-- ⏳ **下载方法** — `api.download()` 调用
-- ⏳ **多个 model 接口聚合** — 一个 Repository 里的方法跨多个 model
-- ⏳ **接口分组** — 一个 Repository 太多方法时,自动拆成多个(`AnnounceListRepository` / `AnnounceDetailRepository`)
-- ⏳ **错误码自动 import** — 从 docs/api/{m}.md 读出错误码列表,生成 enum 常量(避免硬编码 21001 这种 magic number)
-- ⏳ **接口注释** — 从契约文档读"用途"字段,生成 `///` 注释
-- ⏳ **必填字段强校验** — 在方法签名上加 `required` 关键字
-
-**v3 (可选高级) — 后续迭代:**
-- 💡 **Cache 层封装** — 默认 5 分钟内存 cache(`flutter_cache_manager` 或自实现),GET 接口自动 cache
-- 💡 **重试策略** — 网络异常自动重试 N 次(可配置)
-- 💡 **接口聚合 (Aggregator)** — 一个方法调多个接口然后合并(并行)
-- 💡 **Stream 接口** — SSE / WebSocket 包装成 Stream
-- 💡 **分页加载状态机** — 把 page/pageSize/loading/hasMore 自动管理
-- 💡 **取消令牌全局管理** — 切路由时自动 cancel 该路由的所有请求
-- 💡 **Mock 数据热更新** — 不需要重启,改 mock JSON 立即生效(运行时读取)
-- 💡 **生成 unit test** — 用 mocktail 自动写 Repository 测试
-- 💡 **OpenAPI / Swagger 导入** — 直接读 swagger.json 生成 contract + repository
-
-**完全不要做的:**
-- ❌ 不要绕过 ApiClient (那是核心库)
-- ❌ 不要在 Repository 内做缓存(v1 没有,v3 才考虑,v1 做了破坏分层)
-- ❌ 不要 catch 异常(让 controller 处理)
-- ❌ 不要自动跑 build_runner
-
----
-
-## 给博龙的具体提示
-
-1. **第一件事:** 跑一遍 v1,生成 announce 模块的 repository,看代码是否能 `flutter analyze` 通过
-
-2. **测试方法:**
-   ```bash
-   # 在 /tmp/flutter_skills_test/ 跑
-   bash scripts/run.sh -d chrome
-   # 写一个临时按钮调 repo.getList(),看 mock 数据能不能取出来
-   ```
-
-3. **最常见的坑:**
-   - 忘了 `Get.lazyPut(... fenix: true)` 的 fenix 参数 → 切路由后实例被销毁,再次进入崩
-   - `fromJson` 用错(应该传 `Announce.fromJson`,不是 `(json) => Announce.fromJson(json as Map)`)
-   - mockKey 拼错(必须与 docs/api/{m}.md 完全一致)
-
-4. **v2 优先级:** upload > 错误码 enum > 接口聚合 > 重试
-
-5. **改完 SKILL.md 后:** version 字段递增(v1.0.0 → v1.1.0)
+**上游：** flutter-model-gen
+**下游：** flutter-page-gen

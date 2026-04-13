@@ -1,6 +1,8 @@
 ---
 name: flutter-model-gen
-description: JSON 或接口契约 → freezed Dart 实体类。用户说"生成 model"、"JSON 转 Dart"、"根据接口生成实体"或 api-design 完成后触发。自动处理基础类型/可空/嵌套对象/DateTime,生成 freezed + json_serializable 模板,可被 build_runner 编译。
+description: |
+  JSON 或接口契约 → freezed Dart 实体类。用户说"生成 model"、"JSON 转 Dart"、"根据接口生成实体"或 api-design 完成后触发。
+  支持 JSON 字符串、.md 契约文档、curl 命令、URL、多 JSON 合成。自动处理基础类型/可空/嵌套对象/DateTime/snake_case/枚举推断,生成 freezed + json_serializable 模板。
 type: skill
 stage: 4
 model: sonnet
@@ -12,115 +14,138 @@ category: generator
 
 # 实体生成 (flutter-model-gen)
 
-> ⚠️ **博龙的样板 v1** — 基础功能渡已搭好,**你需要扩展的部分在段 11**
-
----
-
 ## 1. 触发场景
 
-- "生成 XX 模块的 model"
-- "把这段 JSON 转成 Dart"
-- "根据接口契约生成实体"
-- api-design 完成后 workflow 自动触发
+- "把这个 JSON 转成 Dart" / "JSON 转实体"
+- "生成 XX 模块的 model" / "生成实体类"
+- "根据接口文档生成实体"
+- "把契约文档转成 freezed 类"
+- "这个 URL 的数据转成 model"
+- "这个 curl 命令转成 model"
 
-**反例:**
+**反例（不要用这个 skill）：**
 - "生成接口请求" → `flutter-api-gen`
 - "生成页面" → `flutter-page-gen`
-
----
+- "设计接口契约" → `flutter-api-design`
 
 ## 2. 前置必读
 
 - `docs/_context/tech-stack.md`
 - `docs/_context/conventions.md`
-- `docs/api/{module}.md` (上游 artifact,首选)
-- `_design/api_client_signature.dart` (PageReq / PageResp 约定)
-
----
+- `docs/_context/decisions.md`
+- `docs/_context/glossary.md`
+- `docs/api/{module}.md`（如输入为 .md 契约文档）
+- `_design/api_client_signature.dart`（PageReq / PageResp 约定）
 
 ## 3. 输入
 
-**输入分流(3 种):**
+**必填参数：**
+- `module_name` (string) — 模块英文名，snake_case
+- `source` (string) — 用户输入（JSON 字符串 / .md 文件路径 / curl 命令 / URL）
 
-A. **接口契约文件** (推荐,完整信息)
-   - 路径: `docs/api/{module}.md`
-   - 自动提取所有接口的请求/响应字段
+**可选参数：**
+- `force_overwrite` (bool, default false) — 是否覆盖已有 model 文件
+- `output_path` (string, default `lib/features/{module}/data/models/`) — 自定义输出目录
 
-B. **裸 JSON 字符串**
-   - 用户粘贴一段 JSON
-   - 推断字段类型
+**输入分流：**
 
-C. **多个 JSON + 模块名**
-   - 用户给多个 JSON 片段
-   - 自动 dedupe 字段,合成一个 model
-
----
+| 形式 | 识别特征 | 解析方式 |
+|---|---|---|
+| JSON 字符串 | 包含 `{` 和 `}` 的 JSON | 直接解析，推断字段名、类型、可空性 |
+| .md 文件路径 | 以 `/` 或 `./` 开头，或 `.md` 后缀 | Read 文件，提取响应结构中的 JSON |
+| curl 命令 | 以 `curl` 开头 | Bash 执行 curl 拿到响应 JSON，再解析响应体推断字段 |
+| URL | 以 http/https 开头（非 curl） | WebFetch 抓取，按内容类型分流（JSON 或文档） |
+| 多 JSON 合成 | 用户给出多个 JSON 片段 + 模块名 | 字段去重 + 类型合并，合成一个 model |
 
 ## 4. 工作流程
 
-### Step 1 — 读上下文 + 上游 artifact
+**Pipeline:** 任何输入 → 解析 → 推断类型 → 拆嵌套 → dry-run → 生成 freezed 类
 
-### Step 2 — 解析输入,提取字段
-对每个字段:
-- 名称 (camelCase)
-- 类型 (string / int / double / bool / DateTime / List<T> / Map / 嵌套类)
-- 是否可空 (`?`)
+**Step 1 — 读 context**
+读取段 2 列出的所有前置文件。如输入是 .md，读对应契约文档。
 
-### Step 3 — 类型推断规则
+**Step 2 — 解析输入，识别字段**
+按段 3 的输入分流规则判断输入形式：
+- JSON → 直接解析
+- .md → 提取响应结构中的 JSON
+- curl → Bash 执行 curl 拿到响应 JSON，再解析响应体
+- URL → fetch 后按内容分流
+- 多 JSON → 逐个解析，字段去重，类型冲突时取更宽泛类型（如 int vs double → double），仍不确定时 AskUser
+
+归一化为实体字段清单：
+
+    模块名: announce
+    实体清单:
+      - 实体名: Announce
+        字段:
+          - {name: id, type: String, required: true, nullable: false}
+          - {name: title, type: String, required: true, nullable: false}
+          - {name: content, type: String, required: false, nullable: true}
+          - {name: isRead, type: bool, required: true, nullable: false, default: false}
+          - {name: publishAt, type: DateTime, required: false, nullable: true}
+
+**Step 3 — 推断类型**
+按以下规则推断字段类型：
+
 | JSON 值 | Dart 类型 |
 |---|---|
-| `"abc"` | `String` |
-| `123` | `int` |
-| `12.5` | `double` |
-| `true` | `bool` |
-| `null` | 字段加 `?`,类型从其他样本推断 |
-| `"2026-04-10T10:00:00Z"` | `DateTime` (用正则识别 ISO) |
-| `1696732800` | `int` (时间戳) ⚠️ 但也可能是普通 int,**问用户** |
-| `[1, 2]` | `List<int>` |
-| `{...}` | 嵌套类 (拆独立文件) |
+| `"xxx"` | String |
+| `123` | int |
+| `1.5` | double |
+| `true` / `false` | bool |
+| `"2026-04-10T10:00:00Z"` | DateTime |
+| `[...]` 基本类型数组 | List\<T\>（T 为基本类型） |
+| `[{...}]` 嵌套对象数组 | List\<T\>（T 为独立实体，取首元素推断，拆文件） |
+| `{...}` 嵌套对象 | 独立实体类型 |
+| `null` 或缺失 | 标记 nullable |
 
-### Step 4 — 嵌套对象处理 (v1 基础版)
-- 检测嵌套对象
-- 递归生成独立 .model.dart 文件
-- 命名: 父类名 + 字段名 PascalCase (例: `User` 里的 `address` → `UserAddress`)
-- ⚠️ **v1 不处理深层嵌套(>2 层),给警告让用户手动**
+特殊处理：
+- 枚举：从单个 JSON 样本无法检测枚举，跳过。从 .md 契约文档中如果列出了可选值（如 `"active" | "inactive"`），AskUser 确认是否生成枚举
+- DateTime 格式：默认假设后端返回 ISO8601 字符串。如果 JSON 样本中日期字段为数字（Unix 时间戳），AskUser 确认格式并添加 `@JsonKey(fromJson: ...)` 转换
+- snake_case 字段名：如果 JSON key 为 snake_case（如 `publish_at`），Dart 字段名转为 camelCase（`publishAt`），并添加 `@JsonKey(name: 'publish_at')`。如果项目已在 `build.yaml` 配置全局 `field_rename: snake`，则不需要 `@JsonKey`，以项目配置为准
+- 类型不确定时 → AskUser 补全
 
-### Step 5 — 生成 freezed 模板
-按段 6 的代码模板,每个实体一个文件。
+**Step 4 — 嵌套对象拆文件**
+每个嵌套对象拆为独立 `{entity}.model.dart`，主实体 import 嵌套实体。
+- 命名规则：父类名 + 字段名 PascalCase（如 `Post` 里的 `author` → `PostAuthor`）
+- 嵌套深度 ≤ 2 层：自动递归处理
+- 嵌套深度 > 2 层：AskUser 确认是否继续拆分，避免过度碎片化
 
-### Step 6 — 写入文件
-- 路径: `lib/features/{module}/data/models/{entity}.model.dart`
-- 同时生成同目录下的 placeholder `{entity}.model.freezed.dart` (空文件,提示要跑 build_runner)
+**Step 5 — Dry-run (AskUser)**
+列出所有将生成的文件路径 + 每个实体的字段摘要。
 
-### Step 7 — 提示运行 build_runner
+使用 AskUserQuestion 提供三个选项：
+1. **确认生成** — 进入 Step 6
+2. **不要生成** — stop，不生成文件
+3. **补充其他项** — 回到 Step 3，用户修改后重新 dry-run
+
+**Step 6 — 写入 freezed 模板**
+按段 6 的代码模板生成 `.model.dart` 文件。
+
+**Step 7 — 自检**
+跑段 8 checklist，逐项验证。
+
+**Step 8 — 提示运行 build_runner**
+提示用户执行：
 ```bash
 fvm dart run build_runner build --delete-conflicting-outputs
 ```
 
-### Step 8 — 自检
-
-### Step 9 — 联动
-建议下一步用 `flutter-api-gen` 生成 Repository。
-
----
-
 ## 5. 输出产物
 
-```
-lib/features/{module}/data/models/
-├── {entity1}.model.dart            主 model
-├── {entity1}.model.freezed.dart    (build_runner 生成)
-├── {entity1}.model.g.dart          (build_runner 生成)
-└── {entity2}.model.dart            如有第二个 entity
-```
+    {output_path}/                          — 默认 lib/features/{module}/data/models/
+    ├── {entity}.model.dart                 — 主实体
+    ├── {nested_entity}.model.dart          — 嵌套实体（如有）
+    └── ...
 
----
+输出路径默认 `lib/features/{module}/data/models/`，可通过 `output_path` 自定义。
 
-## 6. 代码模板 (v1 基础版)
+## 6. 代码模板
 
-### 6.1 简单 model
+以公告模块为例，生成的 freezed 实体类：
 
 ```dart
+// announce.model.dart
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'announce.model.freezed.dart';
@@ -131,11 +156,9 @@ class Announce with _$Announce {
   const factory Announce({
     required String id,
     required String title,
-    String? summary,
     String? content,
-    required DateTime publishAt,
     @Default(false) bool isRead,
-    String? author,
+    DateTime? publishAt,
   }) = _Announce;
 
   factory Announce.fromJson(Map<String, dynamic> json) =>
@@ -143,9 +166,69 @@ class Announce with _$Announce {
 }
 ```
 
-### 6.2 List 字段
+嵌套对象示例（如 Post 中的 author 字段）：
 
 ```dart
+// post_author.model.dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'post_author.model.freezed.dart';
+part 'post_author.model.g.dart';
+
+@freezed
+class PostAuthor with _$PostAuthor {
+  const factory PostAuthor({
+    required String id,
+    required String name,
+    String? avatar,
+  }) = _PostAuthor;
+
+  factory PostAuthor.fromJson(Map<String, dynamic> json) =>
+      _$PostAuthorFromJson(json);
+}
+```
+
+主实体引用嵌套实体：
+
+```dart
+// post.model.dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'post_author.model.dart';
+
+part 'post.model.freezed.dart';
+part 'post.model.g.dart';
+
+@freezed
+class Post with _$Post {
+  const factory Post({
+    required String id,
+    required String title,
+    required PostAuthor author,
+  }) = _Post;
+
+  factory Post.fromJson(Map<String, dynamic> json) =>
+      _$PostFromJson(json);
+}
+```
+
+**模板规则：**
+- 必须包含 `part` 声明（`.freezed.dart` + `.g.dart`）
+- 必须包含 `fromJson` 工厂构造函数
+- required 字段不加 `?`，可空字段加 `?`
+- 有默认值的字段用 `@Default(value)`
+- 嵌套实体必须 import
+- List 字段必须用 `List<T>`，不用裸 `List`
+
+List 响应包装类示例（分页场景，字段名以 `_design/api_client_signature.dart` 中 PageResp 定义为准）：
+
+```dart
+// announce_list_resp.model.dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'announce.model.dart';
+
+part 'announce_list_resp.model.freezed.dart';
+part 'announce_list_resp.model.g.dart';
+
 @freezed
 class AnnounceListResp with _$AnnounceListResp {
   const factory AnnounceListResp({
@@ -160,143 +243,52 @@ class AnnounceListResp with _$AnnounceListResp {
 }
 ```
 
-### 6.3 嵌套对象 (v1 拆 2 个文件)
-
-`user.model.dart`:
-```dart
-@freezed
-class User with _$User {
-  const factory User({
-    required String id,
-    required String name,
-    UserAddress? address,  // 嵌套
-  }) = _User;
-
-  factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
-}
-```
-
-`user_address.model.dart`:
-```dart
-@freezed
-class UserAddress with _$UserAddress {
-  const factory UserAddress({
-    required String city,
-    required String detail,
-  }) = _UserAddress;
-
-  factory UserAddress.fromJson(Map<String, dynamic> json) =>
-      _$UserAddressFromJson(json);
-}
-```
-
----
-
 ## 7. 不做什么
 
-- ❌ 不自动跑 build_runner (用户控制时机)
-- ❌ 不修改 pubspec.yaml (freezed 已在依赖)
-- ❌ 不生成自定义 fromJson 逻辑 (交给 json_serializable)
-- ❌ 不修改已有 model (除非用户明确要 update)
-- ❌ 不删除文件
-- ❌ 不在 model 内写业务方法 (model 是数据,不是行为)
-- ❌ 不处理 union types (v1 暂不支持,见段 11)
-
----
+- ❌ 不自动跑 build_runner
+- ❌ 不修改 pubspec.yaml
+- ❌ 不生成 fromJson/toJson 自定义逻辑（交给 json_serializable）
+- ❌ 不生成 Repository（交给 flutter-api-gen）
+- ❌ 不修改已有 model 文件（除非用户明确要求覆盖）
+- ❌ 不在 model 内写业务方法（model 是数据，不是行为）
+- ❌ 不处理 union types / sealed class（如需要，后续版本支持）
 
 ## 8. 自检 Checklist
 
-- [ ] 所有字段有类型 (无 dynamic / Object)
-- [ ] nullable 标注正确 (用 `?`)
-- [ ] 嵌套对象拆独立文件
-- [ ] DateTime 字段用 ISO 解析,不是 `String`
-- [ ] 文件名 snake_case,类名 PascalCase
-- [ ] freezed 模板包含 `part` 声明
-- [ ] `factory fromJson` 返回类型正确
-- [ ] List 字段用 `List<T>` 不用 `List`
-- [ ] 必填字段标 `required`,可空字段标 `?`
-
----
+- [ ] 所有字段有类型（无 dynamic）
+- [ ] nullable 字段正确标 `?`
+- [ ] 嵌套对象已拆文件
+- [ ] 文件名 snake_case，类名 PascalCase
+- [ ] freezed 模板包含 part 声明（`.freezed.dart` + `.g.dart`）
+- [ ] DateTime 字段类型为 `DateTime` 或 `DateTime?`，非 ISO8601 格式已添加 `@JsonKey`
+- [ ] snake_case JSON key 已添加 `@JsonKey(name: ...)` 或项目已配置全局 `field_rename`
+- [ ] import 路径正确
+- [ ] List 字段用 `List<T>` 不用裸 `List`
 
 ## 9. 失败处理
 
-**ASK_USER 时机:**
-- JSON 字段类型推断不出 (string vs int)
-- 时间格式不明 (ISO vs timestamp)
-- 嵌套深度 > 2,让用户决定是否拆
-- 字段名与 Dart 关键字冲突 (如 `class` → `clazz`?)
+**何时 ask user：**
+- 字段类型不确定时
+- 检测到将覆盖已有 model 文件时
+- 枚举值需要确认时
+- 嵌套深度 > 2 层时
 
-**STOP 时机:**
-- JSON 解析失败 (非法格式)
-- 上游 docs/api/{m}.md 不存在
-- lib/features/{module}/ 目录不存在(应先 init)
+**何时 stop：**
+- JSON 格式非法
+- .md 文件不存在或内容无法解析
+- URL 抓取失败
 
-**ROLLBACK:**
-- 自检失败时删除新增的 .model.dart 文件
-
----
+**何时 rollback：**
+- 自检失败 → 删除本次新增的文件
+- 写入中失败 → 如有 git，`git checkout` 恢复；如无 git，删除不完整文件
 
 ## 10. 联动
 
-**成功后建议:**
-> "Model 生成完成: lib/features/{m}/data/models/
->   - {N} 个实体类
->   - 必须运行: fvm dart run build_runner build --delete-conflicting-outputs
->
-> 下一步: 用 flutter-api-gen 生成 Repository"
+**成功后建议：**
+> "Model 生成完成。建议下一步用 `flutter-api-gen` 生成 Repository。"
 
-**失败后建议:**
-> "Model 生成失败,详情见 docs/_failures/{date}.md
-> 检查 docs/api/{m}.md 字段类型是否完整"
+**失败后回退：**
+> "解析失败。请检查输入格式，或回到 `flutter-api-design` 检查契约。"
 
-**上游:** flutter-api-design
-**下游:** flutter-api-gen
-
----
-
-## 11. 🚧 给博龙: 扩展路线图
-
-**v1 (渡已写) — 基础够用,可立即开工:**
-- ✅ 简单类型推断 (string/int/bool/double/DateTime/List)
-- ✅ 可空字段 (`?`)
-- ✅ 嵌套对象拆文件 (≤ 2 层)
-- ✅ freezed + json_serializable 模板
-- ✅ List<T> 类型
-
-**v2 (你应该加) — 第二周做:**
-- ⏳ **枚举推断** — 检测固定字符串值集合 (如 `"status": "active|inactive"`),生成 `enum` + `@JsonValue`
-- ⏳ **深层嵌套** (> 2 层) — 自动递归不需要警告
-- ⏳ **时间戳支持** — 用户选 ISO 还是 unix timestamp,生成对应 `@JsonKey(fromJson:..., toJson:...)`
-- ⏳ **从多个 JSON 样本合成** (输入 C 路径) — 字段去重 + 类型合并
-- ⏳ **驼峰/下划线自动转换** — 后端 `snake_case` ↔ Dart `camelCase` (`@JsonKey(name: 'snake_case')`)
-- ⏳ **字段说明注释** — 从 docs/api/{m}.md 的"说明"列提取,加 `///` doc
-
-**v3 (可选高级) — 后续迭代:**
-- 💡 **Union types / sealed class** — 处理 `type: A | B | C` 的多态结构
-- 💡 **Generic model** — `Resp<T>` 这种泛型包装
-- 💡 **Validation 注解** — 加 `@JsonKey(required: true)` 等
-- 💡 **toString / hashCode 自定义** — 覆盖 freezed 默认
-- 💡 **builder 模式** — 复杂构造场景
-- 💡 **跨模块共享 model** — 抽到 `lib/shared/models/`
-- 💡 **Mock data 自动生成** — 根据 model 生成符合类型的 mock(配合 mock 拦截器)
-
-**完全不要做的:**
-- ❌ 不要在 model 里加业务方法 (违反"model 是数据"原则)
-- ❌ 不要硬编码字段值 (生成时才知道)
-- ❌ 不要自动跑 build_runner (用户决定时机)
-- ❌ 不要支持非 freezed 的 model (项目锁定 freezed)
-
----
-
-## 给博龙的具体提示
-
-1. **你接手 v1 后,先跑一次端到端:**
-   ```
-   照着段 6 给一段 JSON,看 SKILL.md 跑出来的代码能不能 build_runner 通过
-   ```
-
-2. **v2 优先级:** 枚举推断 > 时间戳 > snake_case 转换 > 深层嵌套 > 多 JSON 合成
-
-3. **测试 fixture:** 在 `tests/fixtures/flutter-model-gen/` 准备 5 个真实 JSON 样本(从 yc141 拿),作为回归测试
-
-4. **改 SKILL.md 后,version 字段递增:** v1.0.0 → v1.1.0 (加新功能) / v2.0.0 (破坏性变更)
+**上游：** flutter-api-design
+**下游：** flutter-api-gen
