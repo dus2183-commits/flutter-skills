@@ -30,16 +30,17 @@ owner: @lead
 ```
 states:
   - IDLE                  初始
-  - CONFIRM_PARAMS        确认参数(项目名/包名/项目类型/Tab/平台)
+  - CONFIRM_PARAMS        确认参数(项目名/包名/项目类型/代码规范/Tab/平台)
   - DRY_RUN               展示将创建的文件清单
   - USER_CONFIRM          等待用户最终确认
-  - CREATING              调用 flutter-init 复制 template
-  - REPLACING             替换占位符
-  - PUB_GET               跑 flutter pub get
-  - BUILD_RUNNER          跑 dart run build_runner
-  - BUILD_VERIFY          三端编译验证
-  - ENV_CONFIG            配置多环境 (dev/staging/prod)
-  - DONE                  完成
+  - CREATING              fvm flutter create + 复制 template
+  - REPLACING             替换占位符 + 调整 Tab
+  - INSTALL_SKILLS        ★ 从 GitHub 安装 skill + CLAUDE.md + _design/_knowledge/_governance
+  - ENV_CONFIG            处理 .env 配置
+  - PUB_GET               fvm flutter pub get
+  - BUILD_RUNNER          fvm dart run build_runner
+  - BUILD_VERIFY          编译验证 (web 必过, android/ios 可跳)
+  - DONE                  完成 — 提示用户重开 Claude Code
   - ABORT                 终止
   - PAUSED                暂停
 
@@ -125,21 +126,25 @@ final: [DONE, ABORT]
 ```
 🚀 启动 init workflow
 
-[1/8] ⏳ CONFIRM_PARAMS  收集项目信息...
-   - 项目名: my_app
-   - 包名: com.example.myapp
-   - Tab: [首页/分类/发现/消息/我的]
-   - 平台: [android, ios, web]
+[1/10] ⏳ CONFIRM_PARAMS   收集项目信息...
+    - 项目名: my_app
+    - 包名: com.example.myapp
+    - 类型: video | 规范: full
+    - Tab: [首页/分类/发现/视频/我的]
+    - 平台: [android, ios, web]
 
-[2/8] ✅ DRY_RUN         列出将创建 67 个文件
-[3/8] ✅ USER_CONFIRM    用户已确认
-[4/8] ✅ CREATING        复制 template/ 完成 (3.2 MB)
-[5/8] ✅ REPLACING       替换 32 个占位符
-[6/8] ✅ PUB_GET         pubspec.lock 已生成 (45 个依赖)
-[7/8] ✅ BUILD_RUNNER    freezed 生成 8 个文件
-[8/8] ⏳ BUILD_VERIFY    并行编译 android + ios + web ...
-       ✅ android (12s)
-       ✅ ios (18s)
+[2/10] ✅ DRY_RUN          列出将创建 67 个文件
+[3/10] ✅ USER_CONFIRM     用户已确认
+[4/10] ✅ CREATING         fvm flutter create + 复制 template/ (3.2 MB)
+[5/10] ✅ REPLACING        替换 32 个占位符 + Tab 调整
+[6/10] ✅ INSTALL_SKILLS   从 GitHub 安装 35 个 skill + CLAUDE.md + _design/_knowledge/_governance
+[7/10] ✅ ENV_CONFIG       .env.dev 配置完成
+[8/10] ✅ PUB_GET          fvm flutter pub get (147 依赖)
+[9/10] ✅ BUILD_RUNNER     fvm dart run build_runner (79 输出)
+[10/10] ⏳ BUILD_VERIFY    编译验证 web ...
+        ✅ web (8s)
+        ⚠️ android (跳过 - JDK 兼容问题)
+        ⚠️ ios (跳过 - 无 Xcode)
        ✅ web (8s)
 
 ✅ 项目 my_app 创建成功!
