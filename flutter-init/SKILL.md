@@ -48,6 +48,10 @@ category: generator
 - `project_type` (enum) — **项目类型**:
   - **`standard`** (默认) — 普通业务项目,不含视频组件
   - **`video`** — 视频项目,含完整播放器 (横屏+竖屏短视频+加密视频+手势控制)
+- `code_style` (enum) — **代码规范等级**:
+  - **`full`** (默认) — 完整规范: freezed + ApiClient + mockKey + tearoff + EasyRefresh，所有 skill 生效
+  - **`light`** — 轻量规范: 用 GetX 但不强制 freezed/ApiClient/mock，手写 model 和直接 dio 都可以
+  - **`free`** — 自由模式: 不强制任何规范，CLAUDE.md 只保留目录结构约定
 - `target_platforms` (list) — 目标平台,默认 `[android, ios, web]`
   - 可选: `[android, ios, web, macos, windows, linux]`
 
@@ -232,7 +236,23 @@ app.dart 自动显示空 Scaffold,需要把 main.dart 的 initialRoute 改成业
 - `grep -r '{{[A-Z0-9_]*}}' lib/` 应为空
 - `fvm flutter analyze` 应 0 issues
 
-### Step 8 — 处理 .env 文件
+### Step 8 — 选择 CLAUDE.md 模板 (按 code_style)
+
+根据用户选择的 `code_style` 复制对应的 CLAUDE.md:
+
+| code_style | 源文件 | 效果 |
+|---|---|---|
+| `full` | `_claude_templates/CLAUDE_full.md` | 强制 freezed + ApiClient + mockKey + tearoff + EasyRefresh,所有 skill 生效 |
+| `light` | `_claude_templates/CLAUDE_light.md` | 用 GetX 但不强制 freezed/ApiClient,手写 model 和直接 dio 都可以 |
+| `free` | `_claude_templates/CLAUDE_free.md` | 只有目录结构约定,自由发挥 |
+
+```bash
+cp {skill_dir}/template/_claude_templates/CLAUDE_{code_style}.md {target_dir}/CLAUDE.md
+```
+
+替换占位符后,CLAUDE.md 就是该项目的 AI 协作规则。不同项目可以有不同规范。
+
+### Step 9 — 处理 .env 文件 (原 Step 8)
 - `.env.dev` 保留开发配置模板,含:
   - API key (三端三套)
   - 线路配置 (NORMAL_LINES / BACKUP_LINES)
