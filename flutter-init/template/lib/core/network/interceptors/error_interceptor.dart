@@ -1,17 +1,51 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 import '../../error/app_exception.dart';
 
 /// 错误拦截器
+/// - 新格式: {code: 0, data: {...}, msg: "ok"} → 提取 data / 抛 BusinessException
+/// - 旧格式: {status: 'y'/'n', data: {...}} → 兼容保留
 /// - dio 异常 → AppException 子类
-/// - 业务错误码 status: 'n' → BusinessException
 class ErrorInterceptor extends Interceptor {
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    final data = response.data;
+    var data = response.data;
 
-    // 业务错误码处理 (yc141 约定: status: 'y'/'n')
+    // DEBUG_ENCRYPT=true + static 模式时响应体是 String，先 JSON decode
+    if (data is String) {
+      if (data.isEmpty) {
+        handler.next(response);
+        return;
+      }
+      try {
+        data = jsonDecode(data);
+      } catch (_) {
+        // 非 JSON 字符串，直接透传
+        handler.next(response);
+        return;
+      }
+    }
+
     if (data is Map<String, dynamic>) {
+      // 新格式: {code: int, data: any, msg: string}
+      if (data.containsKey('code') && data.containsKey('msg')) {
+        final code = data['code'] as int? ?? -1;
+        if (code != 0) {
+          final msg = data['msg'] as String? ?? '业务异常';
+          handler.reject(DioException(
+            requestOptions: response.requestOptions,
+            error: BusinessException(bizCode: code, bizMsg: msg),
+          ));
+          return;
+        }
+        response.data = data['data'];
+        handler.next(response);
+        return;
+      }
+
+      // 旧格式: {status: 'y'/'n', data: any} (yc141 约定)
       if (data['status'] == 'n') {
         final code = data['errorCode'] as int? ?? -1;
         final msg = data['error'] as String? ?? '业务异常';
@@ -21,9 +55,9 @@ class ErrorInterceptor extends Interceptor {
         ));
         return;
       }
-
-      // status: 'y' → 提取 data 字段
-      response.data = data['data'];
+      if (data.containsKey('status')) {
+        response.data = data['data'];
+      }
     }
 
     handler.next(response);
