@@ -7,6 +7,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:get/get.dart';
 
 import '../crypto/hash_util.dart';
+import '../network/interceptors/encrypt_interceptor.dart';
 
 /// 线路 (主备 fallback)
 class Line {
@@ -22,7 +23,10 @@ abstract class AppConfig {
   String get apiVersion;
   String get apiHeaderKey;
   String get imgKey;
-  String get apiKey; // 已分平台
+  String get apiKey; // 已分平台 (动态密钥用)
+  String get staticEncryptKey; // 静态密钥 (32 字节)
+  EncryptMode get encryptMode; // 加密模式
+  bool get debugEncrypt; // 调试模式 (跳过加解密)
   String get apiPrefix;
   String get sessionId;
   Line get currentLine;
@@ -56,7 +60,7 @@ class DotenvAppConfig extends GetxService implements AppConfig {
   @override
   String get imgKey => dotenv.get('IMG_KEY', fallback: '');
 
-  /// 三端三套 key
+  /// 三端三套 key (动态密钥加密用)
   @override
   String get apiKey {
     if (kIsWeb) {
@@ -67,6 +71,22 @@ class DotenvAppConfig extends GetxService implements AppConfig {
     }
     return dotenv.get('API_ANDROID_KEY', fallback: '');
   }
+
+  /// 静态加密密钥 (32 字节,后端新规范)
+  @override
+  String get staticEncryptKey => dotenv.get('STATIC_ENCRYPT_KEY', fallback: '');
+
+  /// 加密模式: dynamic (yc141 方案) / static (后端新规范)
+  @override
+  EncryptMode get encryptMode {
+    final mode = dotenv.get('ENCRYPT_MODE', fallback: 'static');
+    return mode == 'dynamic' ? EncryptMode.dynamic : EncryptMode.static;
+  }
+
+  /// 调试模式: 跳过加解密 (开发阶段用)
+  @override
+  bool get debugEncrypt =>
+      dotenv.get('DEBUG_ENCRYPT', fallback: 'false') == 'true';
 
   @override
   String get apiPrefix => dotenv.get('API_PREFIX', fallback: '/api');

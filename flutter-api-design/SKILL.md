@@ -1,8 +1,6 @@
 ---
 name: flutter-api-design
-description: |
-  用户给接口需求（口头描述/JSON/文档/URL/文件），生成接口契约文档。
-  触发: "设计接口" / "接口契约" / "api design"。
+description: Flutter 接口契约设计。用户说"设计 XX 接口"、"做接口契约"、"新增 API"或 plan 完成后触发。逐个确认接口路径/方法/认证/字段/错误码,输出 docs/api/{module}.md。给 flutter-model-gen 和 flutter-api-gen 用。
 type: skill
 stage: 3
 model: sonnet
@@ -311,25 +309,29 @@ owner: @b
 > 注意: 业务错误统一 HTTP 200，实际错误在 `errorCode` 字段。
 `````
 
-## 7. 不做什么
+## 7. 不做什么 (Boundary)
 
-- ❌ 不生成 mock JSON 文件（交给下游）
-- ❌ 不生成 Dart 代码（交给 model-gen 和 api-gen）
+- ❌ 不写 Dart 代码 (那是 model-gen 和 api-gen 的事)
+- ❌ 不生成 mock JSON 文件（交给下游 api-gen）
+- ❌ 不修改 lib/core/network/ (核心库不动)
+- ❌ 不调用真实接口 (这是契约设计,不是联调)
+- ❌ 不创建 lib/features/{module}/ 目录 (gen skill 做)
 - ❌ 不修改已有契约文档（如需更新，用户应明确要求覆盖）
-- ❌ 不校验后端接口是否真实可用（只做文档设计）
-- ❌ 不分配超出本模块的错误码
+- ❌ 不分配错误码到其他模块的段位
+- ❌ 不自动 git commit
 
-## 8. 自检 Checklist
+## 8. 自检 Checklist (Quality Gate)
 
-- [ ] 每个接口有 Mock Key
-- [ ] 字段类型明确（无 dynamic / Object）
-- [ ] 时间字段格式统一（全部 ISO 8601 字符串或全部时间戳，不混用）
-- [ ] 错误码段位不与已有模块冲突（grep `docs/api/*.md` 验证）
+- [ ] 每个接口有 mockKey
+- [ ] 每个字段有类型 (没有 dynamic / Object)
 - [ ] 路径符合 `/api/{module}/{action}` 规范
-- [ ] 必填字段已标注
-- [ ] 响应有完整 JSON 示例（含 status/data 包装）
+- [ ] 必填字段标注清楚
+- [ ] 时间字段统一(ISO 8601 字符串 或 时间戳,不混用)
+- [ ] 错误码不与其他模块冲突 (grep 现有 docs/api/*.md 验证)
+- [ ] 错误码段位合理
+- [ ] 响应结构有完整 JSON 示例（含 status/data 包装）
 - [ ] 错误响应示例至少展示一次，错误码表覆盖所有接口
-- [ ] frontmatter 字段完整
+- [ ] frontmatter 完整 (含 parent_artifact 指向 plan)
 - [ ] frontmatter `parent_artifact` 指向存在的上游文档，或为空（如无上游文档）
 
 ## 9. 失败处理
@@ -343,12 +345,15 @@ owner: @b
 - 错误码段位与已有模块冲突（列出冲突让用户决定）
 
 **何时 stop：**
+- spec/plan 文件不存在且用户无法提供接口需求 (要先跑 spec/plan)
+- 全局加密策略不明 (decisions.md 没记录)
 - URL 抓取失败
 - 本地文件不存在或内容无法解析
 - 用户拒绝 dry-run
 - 模块名非法（不是 snake_case）
 
 **何时 rollback：**
+- 写文件失败时不留半成品
 - 自检失败 → 删除已生成的 `docs/api/{module}.md`
 - 写入中途失败 → 删除不完整文件，不留半成品
 
@@ -369,3 +374,5 @@ owner: @b
 **平行：** flutter-theme-design（主题设计，可同时跑）
 
 > **Mock 归属说明：** 本 skill 不生成 mock JSON 文件。mock 数据由下游 `flutter-api-gen` 根据契约文档自动生成。
+
+> **路径转换说明：** 契约中的路径为后端完整路径(如 `POST /api/announce/list`)。下游 `flutter-api-gen` 生成 Repository 时需去掉 `/api` 前缀(baseUrl 已含 apiPrefix),只保留业务部分 `/announce/list`。

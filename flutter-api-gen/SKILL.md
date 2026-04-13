@@ -1,13 +1,11 @@
 ---
 name: flutter-api-gen
-description: |
-  读取接口契约文档，生成 Repository 调用代码 + Binding + Mock JSON。
-  触发: "生成 Repository" / "生成 api" / "生成调用代码"。
+description: 接口契约 → Repository 类(GetX 风格) + Mock JSON 数据。用户说"生成接口请求"、"生成 repository"或 model-gen 完成后触发。严格调用 ApiClient,生成 GetX binding,产出可直接用的 data 层。
 type: skill
 stage: 4
 model: sonnet
 priority: P0
-version: 1.0.0
+version: 2.0.0
 owner: @b
 category: generator
 ---
@@ -28,7 +26,7 @@ category: generator
 - `docs/_context/conventions.md`
 - `docs/_context/decisions.md`
 - `docs/_context/glossary.md`
-- `_design/api_client_signature.dart`（ApiClient 方法签名契约）
+- `_design/api_client_signature.dart` ★ **必读,一定要读** (ApiClient 方法签名契约)
 - `_design/app_exception.dart`（AppException 异常类型）
 - `docs/api/{module}.md`（如输入为 .md 契约文档）
 
@@ -178,9 +176,10 @@ responded with HTTP status 404.
 import 'package:dio/dio.dart' show CancelToken;
 import 'package:get/get.dart';
 
-import 'package:swift/core/network/api_client.dart';
-import 'package:swift/core/network/models/page_req.dart';
-import 'package:swift/core/network/models/page_resp.dart';
+// ⚠️ package name 从 pubspec.yaml 的 name 字段读取,以下用 {package} 示意
+import 'package:{package}/core/network/api_client.dart';
+import 'package:{package}/core/network/models/page_req.dart';
+import 'package:{package}/core/network/models/page_resp.dart';
 
 import '../models/announce.model.dart';
 
@@ -312,12 +311,26 @@ class AnnounceRepositoryBinding extends Bindings {
       {
         "id": "65f7a8b9c1d2e3f4",
         "title": "系统升级公告",
-        "content": "<p>...</p>",
+        "content": "<p>本周日凌晨进行系统升级...</p>",
         "publishAt": "2026-04-10T10:00:00Z",
+        "isRead": false
+      },
+      {
+        "id": "65f7a8b9c1d2e3f5",
+        "title": "新功能上线",
+        "content": "<p>我们新增了 ...</p>",
+        "publishAt": "2026-04-08T15:30:00Z",
+        "isRead": true
+      },
+      {
+        "id": "65f7a8b9c1d2e3f6",
+        "title": "维护通知",
+        "content": "<p>本周二晚 22:00 进行 ...</p>",
+        "publishAt": "2026-04-05T09:00:00Z",
         "isRead": false
       }
     ],
-    "total": 100,
+    "total": 3,
     "page": 1,
     "pageSize": 20
   }
@@ -346,6 +359,121 @@ class AnnounceRepositoryBinding extends Bindings {
   "data": null
 }
 `````
+
+### Upload 方法模板（v2）
+
+```dart
+  /// 上传头像
+  ///
+  /// [file] 文件 (用 XFile 三端兼容)
+  /// [onProgress] 上传进度回调
+  Future<UploadResp> uploadAvatar({
+    required XFile file,
+    void Function(int sent, int total)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    return _api.upload(
+      path: '/user/avatar',  // ⚠️ 不带 /api
+      file: file,
+      onProgress: onProgress,
+      cancelToken: cancelToken,
+    );
+  }
+```
+
+**upload 规则:**
+- import `package:cross_file/cross_file.dart` (XFile 三端兼容)
+- 返回类型 `UploadResp` (含 url + key)
+- 不需要 mockKey (upload 不走 mock)
+- 不需要 fromJson (ApiClient.upload 内部处理)
+- onProgress 可选,透传给 ApiClient
+
+### Download 方法模板（v2）
+
+```dart
+  /// 下载文件
+  ///
+  /// [savePath] 保存路径
+  Future<void> downloadFile({
+    required String url,
+    required String savePath,
+    void Function(int received, int total)? onProgress,
+    CancelToken? cancelToken,
+  }) async {
+    await _api.download(
+      urlPath: url,
+      savePath: savePath,
+      onProgress: onProgress,
+      cancelToken: cancelToken,
+    );
+  }
+```
+
+### 带注释的 Repository 方法模板（v2）
+
+```dart
+  /// 示例列表（分页）
+  ///
+  /// 分页查询示例数据,支持按名称/标题/状态筛选。
+  /// 来源: docs/api/example.md - 接口 1
+  Future<PageResp<ExampleInfo>> getList({
+    required PageReq pageReq,
+    String? name,
+    String? title,
+    int? status,
+    String? startTime,
+    String? endTime,
+    CancelToken? cancelToken,
+  }) async {
+    return _api.getList<ExampleInfo>(
+      path: '/example/list',
+      pageReq: pageReq,
+      extraParams: {
+        if (name != null) 'name': name,
+        if (title != null) 'title': title,
+        if (status != null) 'status': status,
+        if (startTime != null) 'startTime': startTime,
+        if (endTime != null) 'endTime': endTime,
+      },
+      mockKey: 'example/list',
+      fromJson: (json) => ExampleInfo.fromJson(json as Map<String, dynamic>),
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// 新增示例
+  ///
+  /// 新增一条示例数据。name 和 title 必填。
+  /// 来源: docs/api/example.md - 接口 2
+  Future<void> add({
+    required String name,
+    required String title,
+    String? content,
+    String? remark,
+    int? status,
+    CancelToken? cancelToken,
+  }) async {
+    await _api.postJson<void>(
+      path: '/example/add',
+      data: {
+        'name': name,
+        'title': title,
+        if (content != null) 'content': content,
+        if (remark != null) 'remark': remark,
+        if (status != null) 'status': status,
+      },
+      mockKey: 'example/add',
+      fromJson: (_) {},
+      cancelToken: cancelToken,
+    );
+  }
+```
+
+**v2 注释规则:**
+- 每个方法加 `///` 注释,从契约文档的 summary/description 提取
+- 标注来源: `/// 来源: docs/api/{module}.md - 接口 N`
+- 必填字段用 `required` 关键字
+- 可选筛选字段用 `if (x != null) 'key': x` 模式传入 extraParams/data
 
 ### 模板规则
 
@@ -384,15 +512,45 @@ class AnnounceRepositoryBinding extends Bindings {
 | `getList<T>` | path, pageReq, mockKey, fromJson | extraParams, cancelToken, encrypt |
 | `delete<T>` | path, mockKey, fromJson | data, cancelToken, encrypt |
 
-## 7. 不做什么
+### 业务层调用示例 (写在注释里给用户参考)
 
+```dart
+// 在 controller 中:
+final repo = Get.find<AnnounceRepository>();
+try {
+  final resp = await repo.getList(pageReq: const PageReq());
+  // 处理 resp.list / resp.total / resp.hasMoreWith(pageNum:, pageSize:)
+} on CancelException {
+  // 静默,不提示
+} on AuthException {
+  Get.toNamed('/login');
+} on BusinessException catch (e) {
+  Get.snackbar('提示', e.userMessage);
+} on AppException catch (e) {
+  Get.snackbar('错误', e.userMessage);
+} catch (e, s) {
+  // 兜底: 非 AppException 包成 UnknownException
+  error.value = UnknownException(message: e.toString(), cause: e, stackTrace: s);
+} finally {
+  loading.value = false;
+}
+```
+
+## 7. 不做什么 (Boundary)
+
+- ❌ **不直接 `new Dio()`** — 必须 `Get.find<ApiClient>()`
+- ❌ **不直接 import `package:dio/dio.dart`** (除了 type re-export 如 `show CancelToken`)
+- ❌ 不在 Repository 内 catch 异常 (让上层 catch)
+- ❌ 不在 Repository 内调 `Get.snackbar` (那是 UI 的事)
+- ❌ 不写业务逻辑 (Repository 只做数据访问,业务在 controller)
 - ❌ 不生成 model 实体类（交给 flutter-model-gen）
 - ❌ 不生成 Controller / Page（交给 flutter-page-gen）
-- ❌ 不修改已有 Repository 文件（除非用户明确要求覆盖）
-- ❌ 不直接 import Dio（只通过 ApiClient 调用）
-- ❌ 不添加自定义错误处理逻辑（AppException 由 ApiClient 拦截器统一处理）
-- ❌ 不生成接口契约文档（交给 flutter-api-design）
-- ❌ 不生成 upload/download Repository 方法（文件上传下载需手动实现或使用专用 skill）
+- ❌ 不修改 model 文件
+- ❌ 不修改 lib/core/network/
+- ❌ 不自动跑路由注册 (那是 page-gen 的事)
+- ❌ 不直接读 .json 文件 (mock 是 ApiClient 内部的事)
+- ❌ 不 throw String
+- ❌ 不自动 git commit
 
 ## 8. 自检 Checklist
 
@@ -436,7 +594,7 @@ class AnnounceRepositoryBinding extends Bindings {
 - .md 文件不存在或内容无法解析
 - JSON 格式非法
 - URL 抓取失败
-- 契约中包含 upload/download 接口（提示需手动实现）
+- 契约中包含 upload/download 接口但 ApiClient 无对应方法（检查 api_client_signature.dart）
 - **ApiClient 接口签名变了**（检测 `_design/api_client_signature.dart` 与模板不一致）
 
 **何时 rollback：**
@@ -453,3 +611,26 @@ class AnnounceRepositoryBinding extends Bindings {
 
 **上游：** flutter-model-gen
 **下游：** flutter-page-gen
+
+## 11. 扩展路线图
+
+**v1 (当前) — 基础够用:**
+- ✅ 5 个 ApiClient 方法的封装 (get / postJson / postForm / getList / delete)
+- ✅ Repository extends GetxService
+- ✅ Binding 自动生成
+- ✅ cancelToken 透传
+- ✅ mockKey 自动注入
+- ✅ fromJson 转 model
+
+**v2 (已完成):**
+- ✅ upload 方法封装 — XFile + onProgress + UploadResp
+- ✅ download 方法 — savePath + onProgress
+- ✅ 接口注释 — 从契约文档的 summary/description 提取 `///` 注释 + 来源标注
+- ✅ 必填字段 required — 契约中标 required 的字段在方法签名加 required
+- ✅ 错误码 — 已由独立 skill `flutter-error-code-gen` 覆盖
+
+**v3 (可选高级):**
+- 💡 Cache 层封装
+- 💡 重试策略
+- 💡 Stream 接口 (SSE / WebSocket)
+- 💡 OpenAPI / Swagger 导入

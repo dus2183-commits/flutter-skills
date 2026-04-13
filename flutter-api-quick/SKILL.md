@@ -1,8 +1,6 @@
 ---
 name: flutter-api-quick
-description: |
-  API 规格一键生成全套代码。用户粘贴接口描述/JSON/curl/Swagger,零交互生成契约文档 + freezed model + Repository + Binding + Mock JSON + build_runner。
-  触发: "快速生成接口"、"一键生成 API"、"帮我把这几个接口全生成了"、"这是后端给的接口,帮我生成代码"。
+description: API 规格一键生成全套代码(契约+model+Repository+Binding+Mock+build_runner)。用户说"快速生成接口"、"一键生成 API"、"帮我把这几个接口全生成了"时触发。零交互,粘贴即出。
 type: skill
 stage: 4
 model: sonnet
@@ -107,7 +105,33 @@ POST /api/v1/auth/login
 ```
 
 **路由 A (文字+JSON):** 提取 HTTP 方法+路径、请求字段描述、响应 JSON 块。
-**路由 B (Swagger):** 从 paths 对象提取 method/path/requestBody/responses。
+**路由 B (Swagger/OpenAPI):** 详细解析规则:
+
+1. **识别**: 顶层含 `swagger: "2.0"` 或 `openapi: "3.x"`
+2. **提取接口**: 遍历 `paths` 对象,每个 path+method 组合 = 一个接口
+3. **请求字段**:
+   - Swagger 2.0: `parameters[].in == "body"` → 取 `schema.$ref` → 从 `definitions` 解析
+   - OpenAPI 3.x: `requestBody.content.application/json.schema.$ref` → 从 `components.schemas` 解析
+4. **解析 $ref**: `$ref: "#/definitions/proto.AddExampleReq"` → 找 `definitions["proto.AddExampleReq"]`
+   - `properties` → 字段列表
+   - `required` 数组 → 标记必填字段
+   - `type: "integer"` → int, `type: "string"` → String, `type: "array"` → List
+   - 嵌套 `$ref` → 递归解析
+5. **响应结构**:
+   - Swagger 2.0: `responses.200.schema.$ref` → 从 `definitions` 解析
+   - 无 `$ref` 时(如 `type: "string"`) → 简单返回类型
+6. **字段说明**: `properties.xxx.description` → 提取为注释
+7. **tags**: 用 `tags[0]` 作为模块中文名
+8. **summary**: 用 `summary` 作为接口中文名,`description` 作为接口注释
+
+**Swagger 归一化示例**:
+```
+输入: proto.ExampleListReq (definitions)
+  properties: pageNum(int,required), pageSize(int,required), name(string), title(string), status(int), startTime(string), endTime(string)
+
+归一化为:
+  请求字段: [{name: pageNum, type: int, required: true, desc: "页数"}, {name: pageSize, type: int, required: true, desc: "条数"}, ...]
+```
 **路由 C (curl):** 解析 URL(-X 取方法)、-d 取请求体、-H 取 headers。无响应体时 ASK_USER。
 **路由 D (多接口):** 按 `---` 或编号拆分,每段走路由 A/C。
 
@@ -116,6 +140,7 @@ POST /api/v1/auth/login
 从第一个 API 路径提取: `/api/v1/{module}/action` → module。
 - 有版本前缀 `/v1/` → 保留在 repository path,但 module_name 取版本后的段
 - 例: `/api/v1/auth/login` → module_name = `auth`, repo path = `/v1/auth/login`
+- **用户输入路径如含 /api 前缀,生成 Repository path 时必须去掉** (baseUrl 已含 apiPrefix,否则 /api/api/ 404)
 - 用户显式指定 module_name 时以用户为准
 
 ### Step 4 — 推断字段类型 + ApiClient 方法
@@ -128,7 +153,7 @@ POST /api/v1/auth/login
 | `123` | int |
 | `12.5` | double |
 | `true`/`false` | bool |
-| `null` | 标记 nullable,默认 String? |
+| `null` | 标记 nullable,类型从其他接口或字段名推断;无法推断时 ASK_USER |
 | ISO 8601 字符串 (`\d{4}-\d{2}-\d{2}T`) | DateTime |
 | `[...]` | List&lt;T&gt; (取首元素推断 T) |
 | `{...}` 嵌套对象 | 独立 model 类 |
@@ -192,8 +217,8 @@ fvm dart run build_runner build --delete-conflicting-outputs
 ```
 docs/api/{module}.md                                    契约文档
 lib/features/{module}/data/models/
-├── {module}_resp.model.dart                             响应 model
-├── {module}_{nested}.model.dart                         嵌套对象 model
+├── {entity}.model.dart                                  响应实体 model (如 auth.model.dart)
+├── {nested_entity}.model.dart                           嵌套对象 model (如 auth_user.model.dart)
 └── {action}_req.model.dart                              请求 model (≥3 字段时)
 lib/features/{module}/data/repositories/
 ├── {module}_repository.dart                             Repository
@@ -518,7 +543,7 @@ void 响应: `{ "code": 0, "data": null, "msg": "ok" }`
   > "输入信息不足,建议分步执行: 1) flutter-api-design 2) flutter-model-gen 3) flutter-api-gen"
 
 **ROLLBACK:**
-- build_runner 失败 → 删除所有生成的 `.model.dart`,保留契约文档和 mock
+- build_runner 失败 → 保留 `.model.dart`(model 本身可能是对的,只是 codegen 有问题),提示用户检查错误后手动重跑 `fvm dart run build_runner build --delete-conflicting-outputs`
 - 自检失败 → 删除 `lib/features/{module}/data/` 下新增文件,revert pubspec.yaml
 
 ---

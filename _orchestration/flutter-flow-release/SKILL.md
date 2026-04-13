@@ -70,7 +70,7 @@ final: [DONE, ABORT]
 
 | State | 调用方式 | Skill / Bash |
 |---|---|---|
-| PRE_CHECK | bash | `git status` + `flutter analyze` + `flutter test` |
+| PRE_CHECK | bash + conditional | `git status` + `flutter analyze` + `flutter test`; 如果 test/ 下无测试文件 → 调 `flutter-test-gen` 先生成 |
 | BUMP_VERSION | sequential | `flutter-release` (内部 bump) |
 | GENERATE_CHANGELOG | sequential | `flutter-changelog` |
 | USER_CONFIRM | inline | AskUserQuestion |

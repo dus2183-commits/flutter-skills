@@ -1,13 +1,11 @@
 ---
 name: flutter-model-gen
-description: |
-  JSON 或接口契约 → freezed Dart 实体类。用户说"生成 model"、"JSON 转 Dart"、"根据接口生成实体"或 api-design 完成后触发。
-  支持 JSON 字符串、.md 契约文档、curl 命令、URL、多 JSON 合成。自动处理基础类型/可空/嵌套对象/DateTime/snake_case/枚举推断,生成 freezed + json_serializable 模板。
+description: JSON 或接口契约 → freezed Dart 实体类。用户说"生成 model"、"JSON 转 Dart"、"根据接口生成实体"或 api-design 完成后触发。自动处理基础类型/可空/嵌套对象/DateTime,生成 freezed + json_serializable 模板,可被 build_runner 编译。
 type: skill
 stage: 4
 model: sonnet
 priority: P0
-version: 1.0.0
+version: 2.0.0
 owner: @b
 category: generator
 ---
@@ -99,17 +97,40 @@ category: generator
 | `{...}` 嵌套对象 | 独立实体类型 |
 | `null` 或缺失 | 标记 nullable |
 
-特殊处理：
-- 枚举：从单个 JSON 样本无法检测枚举，跳过。从 .md 契约文档中如果列出了可选值（如 `"active" | "inactive"`），AskUser 确认是否生成枚举
-- DateTime 格式：默认假设后端返回 ISO8601 字符串。如果 JSON 样本中日期字段为数字（Unix 时间戳），AskUser 确认格式并添加 `@JsonKey(fromJson: ...)` 转换
-- snake_case 字段名：如果 JSON key 为 snake_case（如 `publish_at`），Dart 字段名转为 camelCase（`publishAt`），并添加 `@JsonKey(name: 'publish_at')`。如果项目已在 `build.yaml` 配置全局 `field_rename: snake`，则不需要 `@JsonKey`，以项目配置为准
-- 类型不确定时 → AskUser 补全
+**特殊处理（v2 已实现）：**
+
+**枚举推断：**
+- 契约文档中标注了可选值（如"状态: 0=草稿 1=发布 2=下架"或 `"active" | "inactive"`）→ 生成 enum
+- JSON 样本中字段值为小范围整数（0/1/2）且字段名含 status/type/state → 提示可能是枚举,AskUser 确认
+- 确认后生成 enum 文件 + `@JsonValue` 注解（见段 6 枚举模板）
+
+**时间戳支持：**
+- ISO 8601 字符串（`"2026-04-10T10:00:00Z"`）→ 直接用 `DateTime`（freezed 自动处理）
+- Unix 时间戳秒（`1696732800`，10 位数字）→ 用 `DateTime` + `@JsonKey(fromJson: _fromTimestamp, toJson: _toTimestamp)`
+- Unix 时间戳毫秒（`1696732800000`，13 位数字）→ 同上但除以 1000
+- 不确定时 AskUser（"这个数字是时间戳还是普通 int？"）
+
+**snake_case 自动转换：**
+- JSON key 含 `_`（如 `publish_at`、`created_at`）→ Dart 字段名转 camelCase（`publishAt`）+ `@JsonKey(name: 'publish_at')`
+- 如果项目 `build.yaml` 已配置全局 `field_rename: snake`，则不加 `@JsonKey`，以项目配置为准
+- 检测方式: 扫描 JSON key,任一含 `_` 即触发转换
+
+**字段说明注释：**
+- 如果输入是 .md 契约文档，从字段表的"说明"列提取，加 `///` doc 注释到每个字段上方
+- 如果是裸 JSON 无说明，跳过注释
+
+**多 JSON 合成：**
+- 用户给多个 JSON 片段（如列表接口和详情接口的响应）→ 字段去重 + 类型合并
+- 同名字段类型冲突时取更宽泛类型（int vs double → double）
+- 仍不确定时 AskUser
+
+**类型不确定时** → AskUser 补全
 
 **Step 4 — 嵌套对象拆文件**
 每个嵌套对象拆为独立 `{entity}.model.dart`，主实体 import 嵌套实体。
 - 命名规则：父类名 + 字段名 PascalCase（如 `Post` 里的 `author` → `PostAuthor`）
-- 嵌套深度 ≤ 2 层：自动递归处理
-- 嵌套深度 > 2 层：AskUser 确认是否继续拆分，避免过度碎片化
+- 嵌套深度 ≤ 3 层：自动递归处理（v2 扩展,原 v1 为 ≤2 层）
+- 嵌套深度 > 3 层：AskUser 确认是否继续拆分，避免过度碎片化
 
 **Step 5 — Dry-run (AskUser)**
 列出所有将生成的文件路径 + 每个实体的字段摘要。
@@ -211,6 +232,107 @@ class Post with _$Post {
 }
 ```
 
+### 枚举示例（v2）
+
+```dart
+// example_status.dart
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+/// 示例状态枚举
+///
+/// 来源: docs/api/example.md 状态字段
+/// 0=草稿 1=发布 2=下架
+enum ExampleStatus {
+  @JsonValue(0)
+  draft,
+  @JsonValue(1)
+  published,
+  @JsonValue(2)
+  archived;
+}
+```
+
+主实体中引用:
+```dart
+@freezed
+class ExampleInfo with _$ExampleInfo {
+  const factory ExampleInfo({
+    required String id,
+    required ExampleStatus status,  // ← 用枚举类型
+    // ...
+  }) = _ExampleInfo;
+  // ...
+}
+```
+
+### 时间戳字段示例（v2）
+
+```dart
+// 如果后端返回 Unix 时间戳 (秒):
+@freezed
+class Order with _$Order {
+  const factory Order({
+    required String id,
+    @JsonKey(fromJson: _timestampToDateTime, toJson: _dateTimeToTimestamp)
+    required DateTime createdAt,
+  }) = _Order;
+
+  factory Order.fromJson(Map<String, dynamic> json) => _$OrderFromJson(json);
+}
+
+DateTime _timestampToDateTime(int timestamp) =>
+    DateTime.fromMillisecondsSinceEpoch(timestamp * 1000);
+
+int _dateTimeToTimestamp(DateTime dt) =>
+    dt.millisecondsSinceEpoch ~/ 1000;
+```
+
+### snake_case 字段示例（v2）
+
+```dart
+@freezed
+class UserProfile with _$UserProfile {
+  const factory UserProfile({
+    required String id,
+    @JsonKey(name: 'user_name') required String userName,
+    @JsonKey(name: 'created_at') DateTime? createdAt,
+    @JsonKey(name: 'avatar_url') String? avatarUrl,
+  }) = _UserProfile;
+
+  factory UserProfile.fromJson(Map<String, dynamic> json) =>
+      _$UserProfileFromJson(json);
+}
+```
+
+### 带字段说明注释示例（v2）
+
+```dart
+@freezed
+class ExampleInfo with _$ExampleInfo {
+  const factory ExampleInfo({
+    /// 示例 ID
+    required String id,
+    /// 名称
+    required String name,
+    /// 标题
+    required String title,
+    /// 内容
+    String? content,
+    /// 备注
+    String? remark,
+    /// 状态: 0=草稿 1=发布 2=下架
+    required int status,
+    /// 创建时间
+    String? createdAt,
+    /// 更新时间
+    String? updatedAt,
+  }) = _ExampleInfo;
+
+  factory ExampleInfo.fromJson(Map<String, dynamic> json) =>
+      _$ExampleInfoFromJson(json);
+}
+```
+
 **模板规则：**
 - 必须包含 `part` 声明（`.freezed.dart` + `.g.dart`）
 - 必须包含 `fromJson` 工厂构造函数
@@ -219,7 +341,9 @@ class Post with _$Post {
 - 嵌套实体必须 import
 - List 字段必须用 `List<T>`，不用裸 `List`
 
-List 响应包装类示例（分页场景，字段名以 `_design/api_client_signature.dart` 中 PageResp 定义为准）：
+> ⚠️ **注意:** 标准分页接口(list+total+page+pageSize)由 api-gen 直接用 core 库的 `PageResp<T>`,**不需要生成此 model**。仅在后端分页结构不符合 PageResp 标准时才需要。
+
+List 响应包装类示例（仅非标准分页时使用）：
 
 ```dart
 // announce_list_resp.model.dart
@@ -253,17 +377,22 @@ class AnnounceListResp with _$AnnounceListResp {
 - ❌ 不在 model 内写业务方法（model 是数据，不是行为）
 - ❌ 不处理 union types / sealed class（如需要，后续版本支持）
 
-## 8. 自检 Checklist
+## 8. 自检 Checklist (Quality Gate)
 
-- [ ] 所有字段有类型（无 dynamic）
-- [ ] nullable 字段正确标 `?`
-- [ ] 嵌套对象已拆文件
-- [ ] 文件名 snake_case，类名 PascalCase
-- [ ] freezed 模板包含 part 声明（`.freezed.dart` + `.g.dart`）
-- [ ] DateTime 字段类型为 `DateTime` 或 `DateTime?`，非 ISO8601 格式已添加 `@JsonKey`
-- [ ] snake_case JSON key 已添加 `@JsonKey(name: ...)` 或项目已配置全局 `field_rename`
-- [ ] import 路径正确
+- [ ] 所有字段有类型 (无 dynamic / Object)
+- [ ] nullable 标注正确 (用 `?`)
+- [ ] 嵌套对象拆独立文件
+- [ ] DateTime 字段用 ISO 解析,不是 `String`
+- [ ] 文件名 snake_case,类名 PascalCase
+- [ ] freezed 模板包含 `part` 声明（`.freezed.dart` + `.g.dart`）
+- [ ] `factory fromJson` 返回类型正确
 - [ ] List 字段用 `List<T>` 不用裸 `List`
+- [ ] 必填字段标 `required`,可空字段标 `?`
+- [ ] snake_case JSON key 已添加 `@JsonKey(name: ...)` 或项目已配置全局 `field_rename`
+- [ ] 枚举字段使用了 enum 类型 + `@JsonValue` (如有枚举标注)
+- [ ] 时间戳字段有 `@JsonKey(fromJson:, toJson:)` 转换 (如果是 unix 而非 ISO)
+- [ ] 契约文档有说明列的字段加了 `///` 注释
+- [ ] import 路径正确
 
 ## 9. 失败处理
 
@@ -274,7 +403,9 @@ class AnnounceListResp with _$AnnounceListResp {
 - 嵌套深度 > 2 层时
 
 **何时 stop：**
-- JSON 格式非法
+- JSON 解析失败 (非法格式)
+- 上游 docs/api/{m}.md 不存在(且用户未提供其他输入源)
+- lib/features/ 目录不存在(项目未初始化,应先跑 flutter-init)
 - .md 文件不存在或内容无法解析
 - URL 抓取失败
 
@@ -292,3 +423,25 @@ class AnnounceListResp with _$AnnounceListResp {
 
 **上游：** flutter-api-design
 **下游：** flutter-api-gen
+
+## 11. 扩展路线图
+
+**v1 (当前) — 基础够用:**
+- ✅ 简单类型推断 (string/int/bool/double/DateTime/List)
+- ✅ 可空字段 (`?`)
+- ✅ 嵌套对象拆文件 (≤ 2 层)
+- ✅ freezed + json_serializable 模板
+- ✅ List<T> 类型
+
+**v2 (已完成):**
+- ✅ 枚举推断 — 检测固定值集合,生成 enum + @JsonValue
+- ✅ 深层嵌套 ≤3 层自动递归
+- ✅ 时间戳支持 — Unix 秒/毫秒检测 + @JsonKey 转换
+- ✅ 多 JSON 合成 — 字段去重 + 类型合并
+- ✅ snake_case 自动转换 — @JsonKey(name:) 或项目级 field_rename
+- ✅ 字段说明注释 — 从契约文档提取 /// doc
+
+**v3 (可选高级):**
+- 💡 Union types / sealed class
+- 💡 Generic model — `Resp<T>` 泛型包装
+- 💡 跨模块共享 model — 抽到 `lib/shared/models/`

@@ -5,14 +5,12 @@ type: skill
 stage: 1
 model: opus
 priority: P0
-version: 1.0.0
+version: 1.1.0
 owner: @c
 category: designer
 ---
 
 # 需求设计 (flutter-spec)
-
-> ⚠️ **张和锋的样板** — 这是渡作为示例写的第一版,张和锋可以照这个格式改 page-gen / review / api-doc 等。
 
 ---
 
@@ -100,11 +98,44 @@ category: designer
 - 只列: 接口中文名 / 用途 / HTTP 方法
 - 给个数量预估 (≥1, ≤10)
 
-### Step 7 — 列出关键字段
+### Step 7 — 列出关键字段 (v2: 自动推断类型)
+
 - 模块的核心实体字段(后续 model-gen 用)
 - 字段名 (camelCase) / 类型 / 必填 / 中文说明
 - 至少 3 个字段
-- 时间字段必须标 ISO/timestamp
+
+**v2 类型智能推断规则:**
+
+| 用户描述 / 字段名特征 | 推断类型 |
+|---|---|
+| id / ID / 编号 | String |
+| 名称 / name / title / 标题 | String |
+| 内容 / content / 描述 / remark | String (nullable) |
+| 状态 / status / type / 类型 | int (标注为可能枚举,留给 model-gen 处理) |
+| 时间 / 日期 / xxxAt / xxxTime / createdAt / updatedAt | String (ISO 8601),标注"时间字段" |
+| 数量 / count / 价格 / price / 金额 / amount | int 或 double (含"价格/金额"用 double) |
+| 是否 / isXxx / hasXxx / 布尔 | bool |
+| 图片 / 头像 / avatar / imageUrl / 链接 / url | String (URL) |
+| 列表 / xxxList / tags / 标签 | List\<String\> 或 List\<嵌套对象\> |
+| 作者 / 用户信息 / xxxInfo | 嵌套对象 (独立实体,标注需要拆) |
+
+**推断示例:**
+用户说"公告模块,有标题、内容、发布时间、是否已读、发布者"
+
+自动推断:
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| id | String | 是 | 公告 ID |
+| title | String | 是 | 标题 |
+| content | String? | 否 | 内容(富文本) |
+| publishAt | String (ISO) | 是 | 发布时间 ⏰ |
+| isRead | bool | 是 | 是否已读 |
+| author | String? | 否 | 发布者 |
+
+**不确定时 AskUser:**
+- "XX 是单个值还是列表?"
+- "XX 的类型是什么? (string/int/bool)"
+- "XX 和 YY 是同一个实体还是两个?"
 
 ### Step 8 — 列出异常场景 (强制 ≥3)
 - 无网络
@@ -321,41 +352,3 @@ owner: @c
 
 ---
 
-## 给张和锋的备注
-
-这是渡写的第一版样板。你接手后:
-
-### 必须照这个套路写的 6 个 SKILL.md
-1. **flutter-page-gen** ★ 最复杂,要支持 4 种页面类型(列表/详情/表单/自定义)
-2. **flutter-widget-gen** 公共组件
-3. **flutter-design-to-code** ★ Figma + 截图,**第一周必须先跑通 figma MCP**
-4. **flutter-review** 7 大类 checklist
-5. **flutter-api-doc** 简单 transformer
-6. **flutter-theme-design** 简单 designer
-
-### 写的时候必须注意
-
-1. **frontmatter 用单行 description**(不要 yaml `|` 多行,Claude Code 只读第一行)
-2. **代码模板段(段 6)** 必须真实可运行
-3. **段 8 自检** 必须可机器验证(不要 "代码优雅" 这种主观项)
-4. **段 7 boundary** 至少 5 条
-5. **段 9 失败处理** ask/stop/rollback 三种情况都写
-6. **段 10 联动** 标明上游下游
-
-### 模板速查
-
-抄这个 spec 的结构,改成你自己的:
-```
-段 1: 触发场景 (3-5 个短语)
-段 2: 前置必读 (4 个 _context + 自己的)
-段 3: 输入 (必填 / 自动 / 追问)
-段 4: 工作流 (Step 1-N)
-段 5: 输出产物 (文件路径)
-段 6: 模板 (真实代码/markdown)
-段 7: 不做什么 (8+ 条)
-段 8: 自检 checklist
-段 9: 失败处理
-段 10: 联动
-```
-
-完成后让渡 review 一遍。

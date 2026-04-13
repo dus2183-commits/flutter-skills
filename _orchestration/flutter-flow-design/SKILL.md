@@ -62,7 +62,8 @@ final: [DONE, ABORT]
 | CONFIRM_TARGET | target_confirmed | MAP_THEME | 用户确认目标路径 |
 | MAP_THEME | theme_checked | LIST_ASSETS | 标记新增颜色/字号 |
 | LIST_ASSETS | assets_listed | GEN_CODE | - |
-| GEN_CODE | code_written | PAGE_GEN | 代码文件存在 |
+| GEN_CODE | code_written | I18N_GEN | 代码文件存在 |
+| I18N_GEN | i18n_done | PAGE_GEN | 硬编码中文已提取 |
 | GEN_CODE | retry | EXTRACT_DESIGN | 提取信息不足 |
 | PAGE_GEN | three_files_done | REVIEW | page+controller+binding 全有 |
 | REVIEW | review_pass | DONE | 0 个 ❌ |
@@ -79,6 +80,7 @@ final: [DONE, ABORT]
 | MAP_THEME | inline | (读 lib/app/theme/) |
 | LIST_ASSETS | inline | (写 assets-needed.md) |
 | GEN_CODE | sequential | `flutter-design-to-code` |
+| I18N_GEN | sequential | `flutter-i18n-gen` (提取设计稿生成代码中的硬编码中文) |
 | PAGE_GEN | sequential | `flutter-page-gen` (补充三件套) |
 | REVIEW | sequential | `flutter-review` |
 

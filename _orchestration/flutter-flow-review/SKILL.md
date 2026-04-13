@@ -1,6 +1,6 @@
 ---
 name: flutter-flow-review
-description: 代码评审流水线。用户说"评审一下"、"检查代码"、"PR 评审"时触发。 跑 health-check + review + lint-fix,输出 docs/review/{date}.md。
+description: 代码评审流水线。用户说"评审一下"、"检查代码"、"PR 评审"时触发。跑 health-check + lint-fix + review + perf-audit + test-gen,输出 docs/review/{date}.md。
 type: workflow
 stage: orchestration
 model: opus
@@ -36,6 +36,8 @@ states:
   - HEALTH_CHECK           跑项目健康检查
   - LINT_AUTO_FIX          自动修复可修的 lint
   - REVIEW_CODE            人工 review (LLM)
+  - PERF_AUDIT             性能审计 (扫描 7 类性能问题)
+  - TEST_CHECK             检查测试覆盖 (无测试则调 test-gen)
   - GENERATE_REPORT        生成评审报告
   - DONE
   - ABORT
@@ -53,7 +55,10 @@ final: [DONE, ABORT]
 | HEALTH_CHECK | health_done | LINT_AUTO_FIX | 健康报告生成 |
 | HEALTH_CHECK | critical_issue | ASK_USER | 严重问题 → 是否继续 |
 | LINT_AUTO_FIX | autofix_done | REVIEW_CODE | dart fix 跑完 |
-| REVIEW_CODE | review_done | GENERATE_REPORT | LLM 评审完成 |
+| REVIEW_CODE | review_done | PERF_AUDIT | LLM 评审完成 |
+| PERF_AUDIT | audit_done | TEST_CHECK | 性能报告生成 |
+| TEST_CHECK | tests_exist | GENERATE_REPORT | test/ 下有对应测试文件 |
+| TEST_CHECK | no_tests | TEST_GEN → GENERATE_REPORT | 无测试则调 flutter-test-gen 生成后继续 |
 | GENERATE_REPORT | report_written | DONE | docs/review/{date}.md 存在 |
 | 任何 | user_abort | ABORT | - |
 
@@ -64,6 +69,8 @@ final: [DONE, ABORT]
 | HEALTH_CHECK | sequential | `flutter-health-check` |
 | LINT_AUTO_FIX | sequential | `flutter-lint-fix` |
 | REVIEW_CODE | sequential | `flutter-review` |
+| PERF_AUDIT | sequential | `flutter-perf-audit` |
+| TEST_CHECK | conditional | `flutter-test-gen` (仅在无测试时调用) |
 | GENERATE_REPORT | (内联,review skill 自己写) | - |
 
 ## 7. Reflector 配置
@@ -99,11 +106,13 @@ final: [DONE, ABORT]
 ```
 🔍 启动 review workflow
 
-[1/5] ✅ DETERMINE_SCOPE  范围: lib/features/announce/ (12 个 .dart 文件)
-[2/5] ✅ HEALTH_CHECK     健康度: 良好 (3 个 warning, 0 个 error)
-[3/5] ✅ LINT_AUTO_FIX    自动修复 8 处
-[4/5] ⏳ REVIEW_CODE      LLM 评审中...
-[5/5] ⏸ GENERATE_REPORT
+[1/7] ✅ DETERMINE_SCOPE  范围: lib/features/announce/ (12 个 .dart 文件)
+[2/7] ✅ HEALTH_CHECK     健康度: 良好 (3 个 warning, 0 个 error)
+[3/7] ✅ LINT_AUTO_FIX    自动修复 8 处
+[4/7] ⏳ REVIEW_CODE      LLM 评审中...
+[5/7] ⏸ PERF_AUDIT       性能审计
+[6/7] ⏸ TEST_CHECK       测试覆盖检查
+[7/7] ⏸ GENERATE_REPORT
 
 预计剩余: ~2 分钟
 ```

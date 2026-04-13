@@ -30,7 +30,7 @@ owner: @lead
 ```
 states:
   - IDLE                  初始
-  - CONFIRM_PARAMS        确认参数(项目名/包名/Tab/平台)
+  - CONFIRM_PARAMS        确认参数(项目名/包名/项目类型/Tab/平台)
   - DRY_RUN               展示将创建的文件清单
   - USER_CONFIRM          等待用户最终确认
   - CREATING              调用 flutter-init 复制 template
@@ -38,6 +38,7 @@ states:
   - PUB_GET               跑 flutter pub get
   - BUILD_RUNNER          跑 dart run build_runner
   - BUILD_VERIFY          三端编译验证
+  - ENV_CONFIG            配置多环境 (dev/staging/prod)
   - DONE                  完成
   - ABORT                 终止
   - PAUSED                暂停
@@ -62,7 +63,8 @@ final: [DONE, ABORT]
 | PUB_GET | pub_fail | ASK_USER | exit non-0 |
 | BUILD_RUNNER | gen_success | BUILD_VERIFY | exit 0 |
 | BUILD_RUNNER | gen_fail | BUILD_VERIFY | (跳过,build_runner 失败不致命) |
-| BUILD_VERIFY | all_pass | DONE | android+ios+web 全 pass |
+| BUILD_VERIFY | all_pass | ENV_CONFIG | android+ios+web 全 pass |
+| ENV_CONFIG | env_configured | DONE | .env.dev 配置完成 |
 | BUILD_VERIFY | partial_fail | ASK_USER | 部分平台失败 |
 | BUILD_VERIFY | all_fail | ABORT | 全部失败 |
 | 任何 | user_abort | ABORT | - |
@@ -78,6 +80,7 @@ final: [DONE, ABORT]
 | PUB_GET | bash | `cd {target} && flutter pub get` |
 | BUILD_RUNNER | bash | `cd {target} && dart run build_runner build --delete-conflicting-outputs` |
 | BUILD_VERIFY | **parallel bash** | `flutter build apk --debug` + `flutter build ios --no-codesign --debug` + `flutter build web` |
+| ENV_CONFIG | sequential | `flutter-env-config` (init action,配置 dev/staging/prod 环境) |
 
 ## 7. Reflector 配置
 

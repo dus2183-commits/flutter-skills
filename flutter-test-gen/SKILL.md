@@ -1,15 +1,13 @@
 ---
 name: flutter-test-gen
-description: |
-  给一段 Dart 代码，生成 mocktail 单元测试。
-  触发: "生成测试" / "写单测" / "生成 unit test"。
+description: 给一段 Dart 代码,生成 mocktail 单元测试。用户说"生成测试"、"写单测"、"生成 unit test"时触发。每个方法覆盖成功/异常/边界三场景。
 type: skill
 stage: 5
 model: sonnet
 priority: P0
 version: 1.0.0
 owner: @b
-category: generator
+category: validator
 ---
 
 # 单元测试生成 (flutter-test-gen)
@@ -123,10 +121,14 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:app/core/network/api_client.dart';
-import 'package:app/core/error/app_exception.dart';
-import 'package:app/features/message/data/models/message.model.dart';
-import 'package:app/features/message/data/repositories/message_repository.dart';
+import 'package:dio/dio.dart' show CancelToken;
+// ⚠️ package name 从 pubspec.yaml 的 name 字段读取,以下用 {package} 示意
+import 'package:{package}/core/network/api_client.dart';
+import 'package:{package}/core/network/models/page_req.dart';
+import 'package:{package}/core/network/models/page_resp.dart';
+import 'package:{package}/core/error/app_exception.dart';
+import 'package:{package}/features/message/data/models/message.model.dart';
+import 'package:{package}/features/message/data/repositories/message_repository.dart';
 
 class MockApiClient extends Mock implements ApiClient {}
 
@@ -167,7 +169,7 @@ void main() {
     test('should return PageResp<Message> when api call succeeds', () async {
       // given
       when(() => mockApi.getList<Message>(
-            path: '/api/message/list',
+            path: '/message/list',  // ⚠️ 不带 /api（baseUrl 已含 apiPrefix）
             pageReq: any(named: 'pageReq'),
             extraParams: any(named: 'extraParams'),
             mockKey: 'message/list',
@@ -182,7 +184,7 @@ void main() {
       expect(result, isA<PageResp<Message>>());
       expect(result.list.length, mockResp.list.length);
       verify(() => mockApi.getList<Message>(
-            path: '/api/message/list',
+            path: '/message/list',  // ⚠️ 不带 /api（baseUrl 已含 apiPrefix）
             pageReq: any(named: 'pageReq'),
             extraParams: any(named: 'extraParams'),
             mockKey: 'message/list',
@@ -194,7 +196,7 @@ void main() {
     test('should rethrow AppException when api call fails', () async {
       // given
       when(() => mockApi.getList<Message>(
-            path: '/api/message/list',
+            path: '/message/list',  // ⚠️ 不带 /api（baseUrl 已含 apiPrefix）
             pageReq: any(named: 'pageReq'),
             extraParams: any(named: 'extraParams'),
             mockKey: 'message/list',
@@ -218,7 +220,7 @@ void main() {
         pageSize: 20,
       );
       when(() => mockApi.getList<Message>(
-            path: '/api/message/list',
+            path: '/message/list',  // ⚠️ 不带 /api（baseUrl 已含 apiPrefix）
             pageReq: any(named: 'pageReq'),
             extraParams: any(named: 'extraParams'),
             mockKey: 'message/list',
@@ -248,9 +250,8 @@ group('getDetail', () {
       File('mock/announce/detail.json').readAsStringSync(),
     )['data'] as Map<String, dynamic>);
     when(() => mockApi.get<Announce>(
-          path: '/api/announce/detail',
+          path: '/announce/detail',
           query: any(named: 'query'),
-          extraParams: any(named: 'extraParams'),
           mockKey: 'announce/detail',
           fromJson: any(named: 'fromJson'),
           cancelToken: any(named: 'cancelToken'),
@@ -269,9 +270,8 @@ group('markRead', () {
   test('should complete without error when api call succeeds', () async {
     // given
     when(() => mockApi.postJson<void>(
-          path: '/api/announce/markRead',
+          path: '/announce/markRead',
           data: any(named: 'data'),
-          extraParams: any(named: 'extraParams'),
           mockKey: 'announce/markRead',
           fromJson: any(named: 'fromJson'),
           cancelToken: any(named: 'cancelToken'),
@@ -290,10 +290,12 @@ group('markRead', () {
 | 方法 | when() 中必须包含的参数 |
 |---|---|
 | `getList<T>` | path, pageReq, extraParams, mockKey, fromJson, cancelToken |
-| `get<T>` | path, query, extraParams, mockKey, fromJson, cancelToken |
-| `postJson<T/void>` | path, data, extraParams, mockKey, fromJson, cancelToken |
-| `postForm<T>` | path, data, extraParams, mockKey, fromJson, cancelToken |
-| `delete<T/void>` | path, query, extraParams, mockKey, fromJson, cancelToken |
+| `get<T>` | path, query, mockKey, fromJson, cancelToken |
+| `postJson<T/void>` | path, data, mockKey, fromJson, cancelToken |
+| `postForm<T>` | path, data, mockKey, fromJson, cancelToken |
+| `delete<T/void>` | path, data, mockKey, fromJson, cancelToken |
+
+> ⚠️ **注意:** 只有 `getList<T>` 有 `extraParams` 参数。其他方法没有,when() 里写了会编译报错。`delete` 用 `data` 不是 `query`。
 
 **模板规则：**
 - 使用 `mocktail`（不是 mockito）
@@ -310,6 +312,13 @@ group('markRead', () {
 - 边界值: 空列表、零值、null 等
 - `when()` 中 path/mockKey 用字面值，其余参数用 `any(named: 'xxx')`
 - `when()` 必须包含被测方法调用的所有参数（含可选参数如 extraParams）
+- **path 不带 `/api` 前缀** — Repository 的 path 不含 /api,测试里 when() 的 path 必须与 Repository 一致
+- **package name 从 pubspec.yaml 读取** — import 路径不要硬编码 `package:app`,要读 pubspec.yaml 的 `name` 字段
+
+> ⚠️ **高频错误警告:**
+> - `when()` 里的 path 必须和 Repository 实际调用的 path 完全一致,不带 `/api`
+> - `AppException` 是 sealed class,不能直接 `AppException(message: ...)`,用具体子类如 `ConnectTimeoutException()`
+> - `registerFallbackValue` 必须放 `setUpAll` 里,不是 `setUp`
 
 ## 7. 不做什么
 

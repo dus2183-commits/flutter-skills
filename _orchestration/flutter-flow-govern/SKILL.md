@@ -55,7 +55,9 @@ final: [DONE, ABORT]
 | APPLY | applied | APPEND_ADR | 改动已写入 |
 | APPEND_ADR | adr_written | COMPLIANCE_CHECK | - |
 | COMPLIANCE_CHECK | all_compliant | DONE | 现有代码符合新规 |
-| COMPLIANCE_CHECK | violations_found | ASK_USER | 是否触发 review fix |
+| COMPLIANCE_CHECK | violations_found | MIGRATE | 需要批量迁移代码 |
+| MIGRATE | migrate_done | DONE | 迁移完成 |
+| COMPLIANCE_CHECK | violations_found (minor) | ASK_USER | 小问题,是否手动修 |
 | 任何 | user_abort | ABORT | - |
 
 ## 6. Worker 调用映射
@@ -67,6 +69,7 @@ final: [DONE, ABORT]
 | APPLY | sequential | `flutter-context-update` (写入) |
 | APPEND_ADR | sequential | `flutter-context-update` (追加 ADR) |
 | COMPLIANCE_CHECK | sequential | `flutter-health-check` |
+| MIGRATE | sequential | `flutter-migrate` (批量重命名/路径修改,仅 violations_found 时调用) |
 
 ## 7. Reflector 配置
 

@@ -1,6 +1,6 @@
 ---
 name: flutter-flow-feature
-description: Flutter 功能开发主流水线。用户说"做一个 XX 模块"、"实现 XX 功能"、"新需求 XX"时触发。 自动编排 spec → plan → api-design → model-gen → api-gen → page-gen → review 全流程, 完整产出可运行的 Flutter 模块代码,带 mock 数据,可直接 flutter run。
+description: Flutter 功能开发主流水线。用户说"做一个 XX 模块"、"实现 XX 功能"、"新需求 XX"时触发。编排 spec→plan→api-design→model-gen→api-gen→page-gen→i18n→test→review 全流程,完整产出可运行的 Flutter 模块代码。
 type: workflow
 stage: orchestration
 model: opus
@@ -122,6 +122,11 @@ owner: @lead
                                  │ ui_written
                                  ▼
                             ┌──────────┐
+                            │ POLISHING│  ← 并行: i18n-gen + error-code-gen + mock-gen + skeleton-gen
+                            └────┬─────┘
+                                 │ polished
+                                 ▼
+                            ┌──────────┐
                             │BUILD_CHECK│  ← bash: flutter analyze + build
                             └─┬────────┘
                               │
@@ -129,8 +134,13 @@ owner: @lead
                        │ pass        │ fail
                        ▼             ▼
                   ┌─────────┐  ┌──────────┐
-                  │REVIEWING│  │  ASK_USER │
+                  │ TEST_GEN│  │  ASK_USER │
                   └────┬────┘  └──────────┘
+                       │ tests_written
+                       ▼
+                  ┌─────────┐
+                  │REVIEWING│  ← review + perf-audit
+                  └────┬────┘
                        │ pass
                        ▼
                   ┌─────────┐
@@ -153,8 +163,10 @@ PAUSED → (上一个 state) (用户继续)
 - `MODEL_GEN` - 调用 model-gen
 - `API_GEN` - 调用 api-gen
 - `UI_GEN` - 并行调用 page-gen + widget-gen
+- `POLISHING` - **新增** 并行调用 i18n-gen + error-code-gen + mock-gen + skeleton-gen
 - `BUILD_CHECK` - bash 编译检查
-- `REVIEWING` - 调用 review
+- `TEST_GEN` - **新增** 调用 test-gen 生成单元测试
+- `REVIEWING` - 调用 review + perf-audit
 - `DONE` - 完成
 - `ABORT` - 终止
 - `PAUSED` - 暂停
@@ -181,10 +193,12 @@ PAUSED → (上一个 state) (用户继续)
 | API_REVIEW | reflector_retry | DESIGNING | retry < 1 |
 | MODEL_GEN | models_written | API_GEN | 所有 .model.dart 存在 |
 | API_GEN | repos_written | UI_GEN | repository 文件存在 |
-| UI_GEN | all_parallel_done | BUILD_CHECK | page + widget 全完成 |
-| BUILD_CHECK | analyze_pass | REVIEWING | flutter analyze exit 0 |
-| BUILD_CHECK | analyze_fail | UI_GEN | retry < 1 |
+| UI_GEN | all_parallel_done | POLISHING | page + widget 全完成 |
+| POLISHING | all_parallel_done | BUILD_CHECK | i18n + error-code + mock + skeleton 全完成 |
+| BUILD_CHECK | analyze_pass | TEST_GEN | flutter analyze exit 0 |
+| BUILD_CHECK | analyze_fail | POLISHING | retry < 1 (可能是 i18n 替换引入的问题) |
 | BUILD_CHECK | analyze_fail | ASK_USER | retry >= 1 |
+| TEST_GEN | tests_written | REVIEWING | 测试文件已生成 |
 | REVIEWING | review_pass | DONE | 0 个 ❌ |
 | REVIEWING | review_fail | (对应 stage) | 有 ❌ 时回到对应阶段 |
 | 任何 | user_abort | ABORT | - |
@@ -200,12 +214,14 @@ PAUSED → (上一个 state) (用户继续)
 |---|---|---|---|
 | SPEC'ING | sequential | `flutter-spec` | 输出 docs/specs/{m}.md |
 | PLANNING | sequential | `flutter-plan` | 读 spec,输出 docs/plans/{m}.md |
-| DESIGNING | **parallel (Agent tool)** | `flutter-api-design` + `flutter-theme-design` | 用 2 个 Agent 并发 |
+| DESIGNING | **parallel** | `flutter-api-design` + `flutter-theme-design` | 用 2 个 Agent 并发 |
 | MODEL_GEN | sequential | `flutter-model-gen` | 读 docs/api/{m}.md |
 | API_GEN | sequential | `flutter-api-gen` | 必须在 model-gen 之后 |
-| UI_GEN | **parallel (Agent tool)** | `flutter-page-gen` + `flutter-widget-gen` | 2 个 Agent 并发 |
-| BUILD_CHECK | bash | `bash scripts/build_check.sh fast` (默认 fast: analyze+web,~20s) | 不调 skill |
-| REVIEWING | sequential | `flutter-review` | 输出 docs/review/{date}-{m}.md |
+| UI_GEN | **parallel** | `flutter-page-gen` + `flutter-widget-gen` | 2 个 Agent 并发 |
+| POLISHING | **parallel** | `flutter-i18n-gen` + `flutter-error-code-gen` + `flutter-mock-gen` + `flutter-skeleton-gen` | 4 个 Agent 并发,提取中文+生成错误码+补 mock+骨架屏 |
+| BUILD_CHECK | bash | `bash scripts/build_check.sh fast` | analyze+web,~20s |
+| TEST_GEN | sequential | `flutter-test-gen` | 给 Repository 生成单元测试 |
+| REVIEWING | **parallel** | `flutter-review` + `flutter-perf-audit` | 代码评审 + 性能审计 |
 
 **并行实现:** 用 Agent tool 同时启动多个 sub-agent,每个 sub-agent 调用一个 worker skill,等所有完成后 join。
 
@@ -228,8 +244,10 @@ PAUSED → (上一个 state) (用户继续)
 | MODEL_GEN 后 | Rule + bash | (1) dart analyze 0 error (2) freezed 模板正确 (3) 嵌套对象拆文件 (4) DateTime 用 ISO8601 | 1 |
 | API_GEN 后 | Rule | (1) 调用 ApiClient 不直接 new Dio (2) 必传 mockKey (3) catch AppException (4) cancelToken 透传 | 1 |
 | UI_GEN 后 | Rule | (1) 三件套全 (page+controller+binding) (2) 用 GetView 不用 StatelessWidget (3) loading/error/empty 三态 (4) const 修饰 | 1 |
+| POLISHING 后 | Rule | (1) i18n: 无硬编码中文残留 (2) error-code: 常量文件存在 (3) mock: JSON 文件 ≥3 条 (4) skeleton: 骨架文件存在(如需) | 0 |
 | BUILD_CHECK | bash | `bash scripts/build_check.sh fast` 退出码 0 (analyze + web,~20s) | 1 |
-| REVIEWING | Schema | review.md 7 段全 + 0 个 ❌ | 不重试 |
+| TEST_GEN 后 | bash | `flutter test test/features/{m}/` exit 0 | 1 |
+| REVIEWING | Schema | review.md 7 段全 + 0 个 ❌ + perf-audit 报告 0 个 🔴 | 不重试 |
 
 **Reflector prompt 模板(共享 LLM 检查时用):**
 
@@ -343,15 +361,18 @@ PAUSED → (上一个 state) (用户继续)
 🚀 启动 feature workflow: 公告模块
    workflow_id: feature-announce-2026-04-10-1430
 
-[1/9] ✅ SPEC'ING        生成 docs/specs/announce.md (1.2KB) [12s]
-[2/9] ✅ SPEC_REVIEW     Reflector PASS [3s]
-[3/9] ✅ PLANNING        生成 docs/plans/announce.md (2.1KB) [18s]
-[4/9] ✅ PLAN_REVIEW     Reflector PASS [2s]
-[5/9] ⏳ DESIGNING       并行: api-design + theme-design ...
-[6/9] ⏸ MODEL_GEN       (等待中)
-[7/9] ⏸ API_GEN         (等待中)
-[8/9] ⏸ UI_GEN          (等待中)
-[9/9] ⏸ REVIEWING       (等待中)
+[1/12] ✅ SPEC'ING        生成 docs/specs/announce.md (1.2KB) [12s]
+[2/12] ✅ SPEC_REVIEW     Reflector PASS [3s]
+[3/12] ✅ PLANNING        生成 docs/plans/announce.md (2.1KB) [18s]
+[4/12] ✅ PLAN_REVIEW     Reflector PASS [2s]
+[5/12] ⏳ DESIGNING       并行: api-design + theme-design ...
+[6/12] ⏸ MODEL_GEN       (等待中)
+[7/12] ⏸ API_GEN         (等待中)
+[8/12] ⏸ UI_GEN          (等待中)
+[9/12] ⏸ POLISHING       i18n + error-code + mock + skeleton
+[10/12] ⏸ BUILD_CHECK    (等待中)
+[11/12] ⏸ TEST_GEN       (等待中)
+[12/12] ⏸ REVIEWING      review + perf-audit
 
 预计剩余时间: ~3 分钟
 ```

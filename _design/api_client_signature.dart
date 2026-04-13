@@ -30,15 +30,21 @@ import 'package:get/get.dart';
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// 分页请求基类。所有列表接口的请求 DTO 应继承此类。
+///
+/// 字段名通过 static 配置,支持 pageNum/page/size 等不同后端约定。
+/// 初始化时设一次: `PageReq.pageField = 'page';`
 class PageReq {
+  static String pageField = 'pageNum'; // 默认 pageNum,可改为 'page'
+  static String sizeField = 'pageSize';
+
   final int page;
   final int pageSize;
 
   const PageReq({this.page = 1, this.pageSize = 20});
 
   Map<String, dynamic> toJson() => {
-        'page': page,
-        'pageSize': pageSize,
+        pageField: page,
+        sizeField: pageSize,
       };
 
   PageReq copyWith({int? page, int? pageSize}) => PageReq(
@@ -48,20 +54,20 @@ class PageReq {
 }
 
 /// 分页响应基类。所有列表接口的响应自动包装。
+///
+/// 后端只返回 list + total,不返回 pageNum/pageSize。
+/// hasMore 需要前端传入 pageNum + pageSize 计算。
 class PageResp<T> {
   final List<T> list;
   final int total;
-  final int page;
-  final int pageSize;
 
   const PageResp({
     required this.list,
     required this.total,
-    required this.page,
-    required this.pageSize,
   });
 
-  bool get hasMore => page * pageSize < total;
+  bool hasMoreWith({required int pageNum, required int pageSize}) =>
+      pageNum * pageSize < total;
   bool get isEmpty => list.isEmpty;
   bool get isNotEmpty => list.isNotEmpty;
   int get currentCount => list.length;
@@ -166,7 +172,7 @@ abstract class ApiClient extends GetxService {
 
   /// 列表请求(自动包装 PageResp)。
   ///
-  /// 后端响应必须是 `{list: [...], total: N, page: N, pageSize: N}` 结构。
+  /// 后端响应必须是 `{list: [...], total: N}` 结构。
   /// 不符合此结构的列表用 postJson 自行处理。
   Future<PageResp<T>> getList<T>({
     required String path,
@@ -252,10 +258,13 @@ abstract class ApiClient extends GetxService {
 /*
 // 示例: features/announce/data/repositories/announce_repository.dart
 
+import 'package:dio/dio.dart' show CancelToken;
 import 'package:get/get.dart';
-import 'package:app/core/network/api_client.dart';
-import 'package:app/core/error/app_exception.dart';
+import 'package:{package}/core/network/api_client.dart';
 import '../models/announce.model.dart';
+
+// ⚠️ 注意: Repository 不 import app_exception.dart (unused_import)
+// ⚠️ 注意: path 不带 /api 前缀 (baseUrl 已含 apiPrefix)
 
 class AnnounceRepository extends GetxService {
   final ApiClient _api = Get.find();
@@ -267,7 +276,7 @@ class AnnounceRepository extends GetxService {
     CancelToken? cancelToken,
   }) async {
     return await _api.getList<Announce>(
-      path: '/api/announce/list',
+      path: '/announce/list',  // ⚠️ 不带 /api
       pageReq: pageReq,
       extraParams: keyword != null ? {'keyword': keyword} : null,
       mockKey: 'announce/list',
@@ -282,7 +291,7 @@ class AnnounceRepository extends GetxService {
     CancelToken? cancelToken,
   }) async {
     return await _api.get<Announce>(
-      path: '/api/announce/detail',
+      path: '/announce/detail',  // ⚠️ 不带 /api
       query: {'id': id},
       mockKey: 'announce/detail',
       fromJson: (json) => Announce.fromJson(json as Map<String, dynamic>),
@@ -296,7 +305,7 @@ class AnnounceRepository extends GetxService {
     CancelToken? cancelToken,
   }) async {
     await _api.postJson<void>(
-      path: '/api/announce/markRead',
+      path: '/announce/markRead',  // ⚠️ 不带 /api
       data: {'id': id},
       mockKey: 'announce/markRead',
       fromJson: (_) {},

@@ -1,9 +1,6 @@
 ---
 name: flutter-changelog
-description: |
-  从 git log 生成 CHANGELOG.md。
-  触发: "生成 changelog" / "更新变更日志" / "generate changelog"。
-  按 Conventional Commits 解析，输出 Keep a Changelog 格式。
+description: 从 git log 生成 CHANGELOG.md。用户说"生成 changelog"、"更新变更日志"时触发。按 Conventional Commits 解析,输出 Keep a Changelog 格式。
 type: skill
 stage: 6
 model: haiku

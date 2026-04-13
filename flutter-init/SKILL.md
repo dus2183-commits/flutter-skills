@@ -45,6 +45,9 @@ category: generator
 **必填参数(必须 ask user 确认):**
 - `project_name` (string, snake_case) — 项目名,如 `swift_app`
 - `package_name` (string, reverse-domain) — 包名,如 `com.company.swift`
+- `project_type` (enum) — **项目类型**:
+  - **`standard`** (默认) — 普通业务项目,不含视频组件
+  - **`video`** — 视频项目,含完整播放器 (横屏+竖屏短视频+加密视频+手势控制)
 - `target_platforms` (list) — 目标平台,默认 `[android, ios, web]`
   - 可选: `[android, ios, web, macos, windows, linux]`
 
@@ -56,6 +59,7 @@ category: generator
   - 可以是 7 个: 加 `[..., 设置, 关于]` (但建议 ≤ 5)
   - 可以是 0 个: `[]` (无底部栏,启动直接跳业务首页)
 - `enable_encryption` (bool, default true) — 是否启用接口加密
+- `encrypt_mode` (enum, default 'static') — 加密模式: static (固定 key + Base64) / dynamic (requestId + GZIP)
 - `enable_mock` (bool, default true) — 是否启用 Mock 开关
 - `lead_name` (string) — 项目负责人,写入 decisions.md
 
@@ -109,6 +113,31 @@ category: generator
 ### Step 6 — 用 template/ 覆盖增量内容
 **注意: 不要覆盖 android/ ios/ macos/ 这些 native 目录(flutter create 已生成)。
 只覆盖我们的"增量内容"。**
+
+**按 project_type 裁剪:**
+
+| 目录/文件 | standard | video |
+|---|---|---|
+| `lib/core/media/network_image/` | ✅ (加密图片) | ✅ |
+| `lib/core/media/player/` | ❌ 跳过 | ✅ 复制 |
+| `lib/shared/widgets/app_image.dart` | ✅ | ✅ |
+| `lib/shared/widgets/app_video.dart` | ❌ 跳过 | ✅ 复制 |
+| `lib/shared/widgets/short_video_page_view.dart` | ❌ 跳过 | ✅ 复制 |
+| `pubspec.yaml` 中 `video_player` 等依赖 | ❌ 删除 | ✅ 保留 |
+| `pubspec.yaml` 中 `visibility_detector` / `screen_brightness` | ❌ 删除 | ✅ 保留 |
+| 其他所有文件 | ✅ | ✅ |
+
+**standard 模式不安装的依赖:**
+- `video_player` / `video_player_web` / `video_player_web_hls`
+- `visibility_detector`
+- `screen_brightness`
+
+**standard 模式不复制的文件:**
+- `lib/core/media/player/` 整个目录
+- `lib/shared/widgets/app_video.dart`
+- `lib/shared/widgets/short_video_page_view.dart`
+
+这样 standard 项目省掉约 1500 行代码 + 5 个三方依赖，编译更快、体积更小。
 
 - bash: 逐项 cp,跳过 android/ios/macos:
   ```bash
@@ -204,9 +233,13 @@ app.dart 自动显示空 Scaffold,需要把 main.dart 的 initialRoute 改成业
 - `fvm flutter analyze` 应 0 issues
 
 ### Step 8 — 处理 .env 文件
-- `.env.dev` 保留 yc141 的开发 key 模板,但加注释让用户填真实值
-- `.env.prod` 保持空模板
-- 给用户警告: ".env.dev 包含示例 key,请改为真实值后才能跑通真实接口"
+- `.env.dev` 保留开发配置模板,含:
+  - API key (三端三套)
+  - 线路配置 (NORMAL_LINES / BACKUP_LINES)
+  - **加密配置**: ENCRYPT_MODE=static, STATIC_ENCRYPT_KEY, DEBUG_ENCRYPT=true
+  - 分页字段配置 (在 main.dart 中用 PageReq.pageField 设)
+- `.env.prod` 保持空模板 (DEBUG_ENCRYPT=false)
+- 给用户警告: ".env.dev 包含示例 key,请改为真实值后才能跑通真实接口。**生产环境 DEBUG_ENCRYPT 必须为 false**"
 
 ### Step 9 — 跑 setup.sh (一键搞定 fvm + Flutter + pub get) ★ 关键
 **不要直接跑 `flutter pub get`,要走 setup.sh 锁定 Flutter 3.27.2:**
@@ -283,20 +316,22 @@ app.dart 自动显示空 Scaffold,需要把 main.dart 的 initialRoute 改成业
 │   ├── core/
 │   │   ├── config/app_config.dart
 │   │   ├── crypto/
-│   │   │   ├── aes_dynamic.dart
-│   │   │   ├── aes_util.dart
+│   │   │   ├── aes_dynamic.dart          动态密钥 AES (yc141 方案)
+│   │   │   ├── aes_static.dart           ★ 新增: 静态密钥 AES (后端新规范)
+│   │   │   ├── aes_util.dart             图片解密
 │   │   │   └── hash_util.dart
 │   │   ├── network/
 │   │   │   ├── api_client.dart
-│   │   │   ├── interceptors/
-│   │   │   └── models/
+│   │   │   ├── interceptors/             含 encrypt_interceptor (双模式)
+│   │   │   ├── models/
+│   │   │   └── services/
+│   │   │       └── line_service.dart     ★ 新增: 线路测速 + 自动选线
 │   │   ├── error/app_exception.dart
 │   │   ├── mock/
 │   │   │   ├── mock_loader.dart
 │   │   │   └── mock_config.dart
 │   │   ├── media/
-│   │   │   ├── app_image.dart
-│   │   │   └── network_image/
+│   │   │   └── network_image/            加密图片 (io/web 条件导出)
 │   │   ├── storage/
 │   │   └── platform/
 │   ├── features/
@@ -306,7 +341,11 @@ app.dart 自动显示空 Scaffold,需要把 main.dart 的 initialRoute 改成业
 │   │   ├── message/
 │   │   └── mine/
 │   └── shared/
-│       └── widgets/
+│       ├── widgets/
+│       │   ├── app_image.dart            ★ 新增: 统一图片组件 (自动解密 .bnc)
+│       │   └── ...                       app_text / app_button / app_loading 等
+│       └── pages/
+│           └── network_error_page.dart   ★ 新增: 线路全挂占位页
 ├── mock/
 │   └── README.md
 ├── assets/
@@ -338,10 +377,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'app/app.dart';
 import 'app/routes/app_pages.dart';
 import 'core/config/app_config.dart';
 import 'core/network/api_client.dart';
+import 'core/network/models/page_req.dart';
+import 'core/network/services/line_service.dart';
 import 'core/mock/mock_loader.dart';
 
 Future<void> main() async {
@@ -350,10 +395,20 @@ Future<void> main() async {
   // 加载 .env
   await dotenv.load(fileName: '.env.dev');
   
+  // ★ 分页字段名配置 (根据后端约定选一个)
+  // PageReq.pageField = 'pageNum';  // 后端用 pageNum (默认)
+  // PageReq.pageField = 'page';     // 后端用 page
+  
   // 初始化 GetxService
   await Get.putAsync<AppConfig>(() async => DotenvAppConfig().init());
   await Get.putAsync<MockLoader>(() async => MockLoader());
-  await Get.putAsync<ApiClient>(() async => ApiClientImpl().init());
+  await Get.putAsync<ApiClient>(() async => ApiClient().init());
+  
+  // ★ 线路测速 + 自动选线 (正常线路全挂时会切备用线路)
+  final lineService = await Get.putAsync(() => LineService().init());
+  lineService.onAllLinesFailed = () {
+    Get.offAllNamed('/network-error');
+  };
   
   runApp(
     GetMaterialApp(
@@ -402,6 +457,13 @@ Future<void> main() async {
 - [ ] 占位符全部替换(grep `{{` 应为空)
 - [ ] `.vscode/launch.json` 含 mock + real 两套
 - [ ] hash_util.dart 没有 dart:io 引用
+- [ ] `lib/core/crypto/aes_static.dart` 存在
+- [ ] `lib/core/network/services/line_service.dart` 存在
+- [ ] `lib/shared/widgets/app_image.dart` 存在
+- [ ] `lib/shared/pages/network_error_page.dart` 存在
+- [ ] `.env.dev` 含 ENCRYPT_MODE + STATIC_ENCRYPT_KEY + DEBUG_ENCRYPT
+- [ ] **video 类型时:** `lib/core/media/player/` 存在 + `app_video.dart` 存在
+- [ ] **standard 类型时:** `lib/core/media/player/` 不存在 + pubspec 无 video_player
 
 ---
 

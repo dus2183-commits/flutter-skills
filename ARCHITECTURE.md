@@ -87,20 +87,20 @@
 - **是什么:** 18 个 worker skill,各自一个 SKILL.md
 - **职责:** 完成单点任务 (生成 model / 写 spec / 评审 / ...)
 - **特征:** 无状态、原子、不调用其他 skill
-- **谁实现:** B/C 主写,组长 review
+- **谁实现:** B/C 主写,A review
 - **谁使用:** L5 workflow 调用
 
 #### L5 Workflow
 - **是什么:** 6 个 `flutter-flow-*` SKILL.md
 - **职责:** 编排多个 worker 完成复杂任务
 - **特征:** 有状态机 + DAG + 并行
-- **谁实现:** 组长
+- **谁实现:** A
 - **谁使用:** L6 调用
 
 #### L6 Orchestration ★
 - **是什么:** Router + Conductor + Reflector 三角色
 - **职责:** 决定执行什么 + 检查质量 + 处理失败
-- **谁实现:** 组长 (核心创新点)
+- **谁实现:** A (核心创新点)
 - **谁使用:** Claude Code 自动调度
 
 详见 [L6 Orchestration 详解](#l6-orchestration-详解) 章节。
@@ -108,13 +108,13 @@
 #### L7 Governance
 - **是什么:** settings.json + checklists + hooks
 - **职责:** 强制规则和质量
-- **谁实现:** 组长
+- **谁实现:** A
 - **谁使用:** Claude Code 自动应用
 
 #### L8 Observability
 - **是什么:** Telemetry 脚本 + 日志文件
 - **职责:** 记录一切发生的事
-- **谁实现:** 组长
+- **谁实现:** A
 - **谁使用:** 后期分析 / 故障排查
 
 ---
@@ -448,6 +448,6 @@ DONE ✅
 
 下一步:
 - **B/C** 读 [`_shared/skill.template.md`](./_shared/skill.template.md) 学怎么写 SKILL.md
-- **组长** 读 [`_design/reflector_design.md`](./_design/reflector_design.md) 设计 Reflector
+- **A** 读 [`_design/reflector_design.md`](./_design/reflector_design.md) 设计 Reflector
 - **所有人** 读 [`_design/api_client_signature.dart`](./_design/api_client_signature.dart) 理解 ApiClient
 - **所有人** 读 [`docs/team.md`](./docs/team.md) 看自己负责什么 (待写)

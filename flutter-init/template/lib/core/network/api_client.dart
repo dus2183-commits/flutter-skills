@@ -18,7 +18,7 @@ import '../config/app_config.dart';
 import '../error/app_exception.dart';
 import '../mock/mock_loader.dart';
 import 'interceptors/auth_interceptor.dart';
-import 'interceptors/encrypt_interceptor.dart';
+import 'interceptors/encrypt_interceptor.dart' show EncryptInterceptor, EncryptMode;
 import 'interceptors/error_interceptor.dart';
 import 'interceptors/log_interceptor.dart' as my_log;
 import 'interceptors/mock_interceptor.dart';
@@ -35,10 +35,13 @@ class ApiClient extends GetxService {
     _config = Get.find<AppConfig>();
     _mockLoader = Get.find<MockLoader>();
 
+    // static 模式: 响应是 Base64 文本; dynamic 模式: 响应是加密二进制
+    final isStaticMode = _config.encryptMode == EncryptMode.static;
+
     _dio = Dio(BaseOptions(
       baseUrl: _config.currentLine.url + _config.apiPrefix,
-      contentType: Headers.formUrlEncodedContentType,
-      responseType: ResponseType.bytes, // ★ 关键: 响应是加密的二进制
+      contentType: isStaticMode ? 'text/plain' : Headers.formUrlEncodedContentType,
+      responseType: isStaticMode ? ResponseType.plain : ResponseType.bytes,
       validateStatus: (status) => true,
       sendTimeout: const Duration(seconds: 10),
       connectTimeout: const Duration(seconds: 10),

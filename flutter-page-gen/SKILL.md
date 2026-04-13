@@ -5,14 +5,12 @@ type: skill
 stage: 4
 model: sonnet
 priority: P0
-version: 1.0.0
+version: 1.1.0
 owner: @c
 category: generator
 ---
 
 # 页面生成 (flutter-page-gen)
-
-> ⚠️ **张和锋的样板 v1** — 渡先实现 2 种页面类型 (列表 / 详情),**你需要扩展另外 2 种**
 
 ---
 
@@ -312,6 +310,7 @@ class AnnounceListController extends GetxController {
   final error = Rxn<AppException>();
   final hasMore = true.obs;
   int _page = 1;
+  static const int _pageSize = 20;
 
   @override
   void onInit() {
@@ -336,7 +335,7 @@ class AnnounceListController extends GetxController {
         cancelToken: _cancelToken,
       );
       list.assignAll(resp.list);
-      hasMore.value = resp.hasMore;
+      hasMore.value = resp.hasMoreWith(pageNum: 1, pageSize: _pageSize);
       _page = 1;
     } on CancelException {
       // 静默
@@ -356,8 +355,8 @@ class AnnounceListController extends GetxController {
         cancelToken: _cancelToken,
       );
       list.addAll(resp.list);
-      hasMore.value = resp.hasMore;
       _page++;
+      hasMore.value = resp.hasMoreWith(pageNum: _page, pageSize: _pageSize);
     } on CancelException {
       // 静默
     } on AppException catch (e) {
@@ -522,23 +521,193 @@ class AnnounceDetailBinding extends Bindings {
 }
 ```
 
-### 6.3 表单型 (page_type=form) — ⏳ v1 暂未实现 (张和锋扩展)
+### 6.3 表单型 (page_type=form)
 
+**`order_create_page.dart`:**
 ```dart
-// TODO(张和锋, v1.1.0): 表单页模板
-// 应该支持:
-//   - 多个 TextField 字段
-//   - 字段校验 (form_field_validator 或自实现)
-//   - 提交 loading 状态
-//   - 提交成功后跳转
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import 'order_create_controller.dart';
+
+class OrderCreatePage extends GetView<OrderCreateController> {
+  const OrderCreatePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('创建订单')),
+      body: Obx(() {
+        return Padding(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: controller.formKey,
+            child: ListView(
+              children: [
+                // 字段 1
+                TextFormField(
+                  controller: controller.titleCtrl,
+                  decoration: const InputDecoration(labelText: '标题'),
+                  validator: (v) => (v == null || v.trim().isEmpty) ? '请输入标题' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // 字段 2
+                TextFormField(
+                  controller: controller.contentCtrl,
+                  decoration: const InputDecoration(labelText: '内容'),
+                  maxLines: 5,
+                  validator: (v) => (v == null || v.trim().isEmpty) ? '请输入内容' : null,
+                ),
+                const SizedBox(height: 24),
+
+                // 提交按钮
+                FilledButton(
+                  onPressed: controller.submitting.value ? null : controller.submit,
+                  child: controller.submitting.value
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('提交'),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
 ```
 
-### 6.4 自定义型 (page_type=custom) — ⏳ v1 暂未实现
-
+**`order_create_controller.dart`:**
 ```dart
-// TODO(张和锋, v1.2.0): 空 scaffold 模板
-// 给用户自由发挥
+import 'package:dio/dio.dart' show CancelToken;
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '../../../../../core/error/app_exception.dart';
+import '../../../data/repositories/order_repository.dart';
+
+class OrderCreateController extends GetxController {
+  OrderCreateController({required this.repo});
+
+  final OrderRepository repo;
+  final _cancelToken = CancelToken();
+
+  final formKey = GlobalKey<FormState>();
+  final titleCtrl = TextEditingController();
+  final contentCtrl = TextEditingController();
+
+  final submitting = false.obs;
+
+  @override
+  void onClose() {
+    _cancelToken.cancel();
+    titleCtrl.dispose();
+    contentCtrl.dispose();
+    super.onClose();
+  }
+
+  Future<void> submit() async {
+    if (!formKey.currentState!.validate()) return;
+
+    submitting.value = true;
+    try {
+      await repo.create(
+        title: titleCtrl.text.trim(),
+        content: contentCtrl.text.trim(),
+        cancelToken: _cancelToken,
+      );
+      Get.back();
+      Get.snackbar('成功', '提交成功');
+    } on CancelException {
+      // 静默
+    } on AppException catch (e) {
+      Get.snackbar('错误', e.userMessage);
+    } catch (e, s) {
+      Get.snackbar('错误', UnknownException(message: e.toString(), cause: e, stackTrace: s).userMessage);
+    } finally {
+      submitting.value = false;
+    }
+  }
+}
 ```
+
+**`order_create_binding.dart`:**
+```dart
+import 'package:get/get.dart';
+
+import '../../../data/repositories/order_repository.dart';
+import 'order_create_controller.dart';
+
+class OrderCreateBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut(
+      () => OrderCreateController(repo: Get.find<OrderRepository>()),
+    );
+  }
+}
+```
+
+**表单型关键规则:**
+- TextEditingController 必须在 `onClose()` 里 `dispose()`
+- 用 `Form` + `GlobalKey<FormState>` + `TextFormField.validator` 做校验
+- 提交按钮在 submitting 时 disabled + 转圈
+- 提交成功后 `Get.back()` 回上一页
+- 不用 `setState`,用 `submitting.obs` + `Obx`
+
+### 6.4 自定义型 (page_type=custom)
+
+**`settings_page.dart`:**
+```dart
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import 'settings_controller.dart';
+
+class SettingsPage extends GetView<SettingsController> {
+  const SettingsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('设置')),
+      body: const Center(
+        child: Text('自定义页面内容'),
+      ),
+    );
+  }
+}
+```
+
+**`settings_controller.dart`:**
+```dart
+import 'package:get/get.dart';
+
+class SettingsController extends GetxController {
+  // 根据业务需求添加状态和方法
+}
+```
+
+**`settings_binding.dart`:**
+```dart
+import 'package:get/get.dart';
+
+import 'settings_controller.dart';
+
+class SettingsBinding extends Bindings {
+  @override
+  void dependencies() {
+    Get.lazyPut(SettingsController.new);
+  }
+}
+```
+
+**自定义型说明:** 提供最小三件套骨架,用户自由填充。Controller 不注入 Repository(如需要,用户手动加)。
 
 ### 6.5 路由注册示例 ★
 
@@ -734,9 +903,9 @@ String get id => Get.parameters['id'] ?? '';
 - ✅ **EasyRefresh + 中文文案** ★ (替代 RefreshIndicator,有下拉/上拉)
 - ✅ catch AppException
 
-**v2 (你必须加) — 这周做:**
-- ⏳ **表单型** (form) — 多字段 + 校验 + 提交 (段 6.3 是 TODO)
-- ⏳ **自定义型** (custom) — 空 scaffold 模板 (段 6.4 是 TODO)
+**v2 (已完成部分):**
+- ✅ **表单型** (form) — 多字段 + Form 校验 + 提交 loading + 成功跳转
+- ✅ **自定义型** (custom) — 最小三件套骨架
 - ⏳ **i18n 自动注入** — 把 hardcode 中文(如 "公告") 改成 `'announce.title'.tr`,同时在 locales/zh_cn/{m}.dart 加 key
 - ⏳ **从 spec 自动推断 page_type** — Step 2 的推断逻辑要更智能
 
@@ -760,33 +929,3 @@ String get id => Get.parameters['id'] ?? '';
 - ❌ 不要支持 StatefulWidget 形式(项目锁定 GetX)
 - ❌ 不要硬编码颜色/字号(用 theme)
 
----
-
-## 给张和锋的具体提示
-
-1. **v1 已能跑通公告列表 + 详情**,你接手后第一件事就是用它生成 announce 模块,看效果。
-
-2. **v2 优先级:** 表单型 > i18n 自动注入 > 自定义型 > easy_refresh
-
-3. **测试方法:**
-   ```bash
-   cd /tmp/flutter_skills_test
-   bash scripts/run.sh -d chrome
-   # 跳到 /announce-list 看列表是否正常
-   # 点单条跳 /announce/:id 看详情是否正常
-   ```
-
-4. **最常见的坑:**
-   - 在 `Obx` 外修改 `.value` (UI 不更新)
-   - 列表 `ListView` 没用 `.builder`(性能差)
-   - `Get.parameters['id']` 没处理 null
-   - i18n 忘记加 key,显示 "announce.title" 字符串
-
-5. **跟博龙对接:**
-   - 你的 page-gen 依赖博龙的 api-gen
-   - Repository 类名变了你要同步改 controller 的 import
-   - 协调好 model 字段名(camelCase / snake_case)
-
-6. **改完 SKILL.md 后:** version 字段递增
-
-7. **注意你还有 6 个 SKILL.md 要写:** widget-gen / design-to-code / review / api-doc / theme-design / spec(已有样板)
