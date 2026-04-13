@@ -15,11 +15,14 @@ owner: @lead
 
 ## ⛔ 铁律（违反任何一条立即停止）
 
-1. **禁止跳步骤直接写代码。** 每个模块必须按 spec → plan → api-design → model-gen → api-gen → page-gen 顺序执行。不能跳过 spec 直接写 model，不能跳过 api-design 直接写 repository。
-2. **多模块可以并行，但每个模块内部必须串行。** 用 Agent tool 同时启动多个模块的流水线，每个 Agent 内部严格按步骤走。例如：Agent A 做 auth (spec→plan→...→page-gen)，同时 Agent B 做 post (spec→plan→...→page-gen)。
+1. **禁止跳步骤直接写代码。** 有依赖关系的步骤必须按顺序：spec → plan → api-design → model-gen → api-gen → page-gen。不能跳过 spec 直接写 model，不能跳过 api-design 直接写 repository。
+2. **无依赖的步骤可以并行。** 用 Agent tool 并发加速：
+   - **多模块并行**: Agent A 做 auth, Agent B 做 post, 同时跑
+   - **模块内也可并行**: api-design + theme-design 同时跑，page-gen + widget-gen 同时跑（见段 6 Worker 调用映射的 parallel 标记）
+   - **但有依赖的必须串行**: model-gen 必须等 api-design 完成，api-gen 必须等 model-gen 完成
 3. **每一步必须读对应的 SKILL.md。** 生成代码前，先读 `.claude/skills/flutter-{skill}/SKILL.md` 里的段 6 代码模板，按模板写，不要凭自己的知识。
 4. **每一步必须产出文件。** spec → `docs/specs/{m}.md`，plan → `docs/plans/{m}.md`，api-design → `docs/api/{m}.md`，model-gen → `.model.dart`，api-gen → `_repository.dart` + mock JSON，page-gen → 三件套。没有文件产出 = 没做。
-5. **禁止把多个 skill 的工作合并成一步。** 不能"同时生成 model + repository + 页面"，必须分步走。
+5. **禁止把有依赖的 skill 合并成一步。** 不能"同时生成 model + repository"（repo 依赖 model），但可以"同时生成 page + widget"（无依赖）。
 
 ---
 
