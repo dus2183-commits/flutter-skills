@@ -110,9 +110,19 @@ category: generator
 **必须先用 `flutter create` 生成 android/ios/web/macos 等原生项目目录**,
 否则后续 build 会报 "Missing index.html" / "unsupported Gradle project" 等。
 
-- bash: `flutter create --platforms=android,ios,web --org {package_org} --project-name {project_name} {target_dir}`
+**目标目录规则：**
+- **在当前目录下创建子目录 `{project_name}/`**（不是在当前目录原地创建）
+- 例: 用户在 `~/Desktop/` 说"创建 e_demo" → 创建 `~/Desktop/e_demo/`
+- 例: 用户在 `~/Desktop/d/` 说"创建 e_demo" → 创建 `~/Desktop/d/e_demo/`
+
+```bash
+# ⚠️ target_dir 必须是 {当前目录}/{project_name}，不是当前目录本身
+target_dir="{cwd}/{project_name}"
+fvm flutter create --platforms=android,ios,web --org {package_org} --project-name {project_name} {target_dir}
+```
+
 - 这一步会生成: android/ ios/ web/index.html web/manifest.json lib/main.dart 等
-- 等价于跑 `flutter create` 后的标准 Flutter 项目结构
+- 后续所有操作都在 `{target_dir}` 下进行
 
 ### Step 6 — 用 template/ 覆盖增量内容
 **注意: 不要覆盖 android/ ios/ macos/ 这些 native 目录(flutter create 已生成)。
