@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart' show Widget;
+
 import '_player_adapter_io.dart'
     if (dart.library.js_interop) '_player_adapter_web.dart' as impl;
 

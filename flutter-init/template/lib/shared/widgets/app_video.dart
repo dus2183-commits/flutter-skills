@@ -184,7 +184,7 @@ class _AppVideoState extends State<AppVideo>
     final w = MediaQuery.of(context).size.width;
     _verticalPos = d.globalPosition.dx > w / 2 ? 'right' : 'left';
     if (_verticalPos == 'left') {
-      final b = await ScreenBrightness.instance.application;
+      final b = await ScreenBrightness.instance.current;
       _verticalInit = true;
       setState(() => _verticalVal = b);
     } else {
@@ -199,7 +199,7 @@ class _AppVideoState extends State<AppVideo>
     var val = (_verticalVal ?? 0) + (up ? 0.02 : -0.02);
     val = val.clamp(0.0, 1.0);
     if (_verticalPos == 'left') {
-      await ScreenBrightness.instance.setApplicationScreenBrightness(val);
+      await ScreenBrightness.instance.setScreenBrightness(val);
     } else {
       _adapter.setVolume(val);
     }
