@@ -1,18 +1,6 @@
 #!/usr/bin/env bash
 # ════════════════════════════════════════════════════════════════════
 #  从 GitHub 更新项目中的 flutter-skills
-# ────────────────────────────────────────────────────────────────────
-#  用法: 在项目根目录下跑
-#    bash <(curl -s https://raw.githubusercontent.com/dus2183-commits/flutter-skills/main/scripts/update_skills.sh)
-#  或:
-#    bash path/to/update_skills.sh
-#
-#  效果:
-#    1. 从 GitHub 拉取最新版
-#    2. 覆盖 .claude/skills/ 下所有 SKILL.md
-#    3. 覆盖 _design + _knowledge + _governance
-#    4. 不动 CLAUDE.md (保留你的自定义)
-#    5. 不动 .claude/settings.json (保留权限配置)
 # ════════════════════════════════════════════════════════════════════
 
 set -e
@@ -24,29 +12,54 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+BOLD='\033[1m'
+BG_RED='\033[41m'
+BG_GREEN='\033[42m'
 NC='\033[0m'
 
-echo -e "${BLUE}╔══════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║  Flutter Skills — 更新               ║${NC}"
-echo -e "${BLUE}╚══════════════════════════════════════╝${NC}"
+echo
+echo -e "${BLUE}${BOLD}╔══════════════════════════════════════════════════╗${NC}"
+echo -e "${BLUE}${BOLD}║     Flutter Skills — 更新                        ║${NC}"
+echo -e "${BLUE}${BOLD}╚══════════════════════════════════════════════════╝${NC}"
 echo
 
 # ─── 检查 ───
 if [ ! -d ".claude/skills" ]; then
-  echo -e "${RED}  ❌ .claude/skills/ 不存在，请先跑 install_skills.sh${NC}"
+  echo -e "${BG_RED}${BOLD}                                                        ${NC}"
+  echo -e "${BG_RED}${BOLD}   ❌ .claude/skills/ 不存在                             ${NC}"
+  echo -e "${BG_RED}${BOLD}   请先跑 install_skills.sh 安装！                       ${NC}"
+  echo -e "${BG_RED}${BOLD}                                                        ${NC}"
+  echo
+  echo -e "  安装命令:"
+  echo -e "  ${BLUE}bash <(curl -s https://raw.githubusercontent.com/dus2183-commits/flutter-skills/main/scripts/install_skills.sh)${NC}"
+  echo
   exit 1
 fi
 
-OLD_COUNT=$(ls .claude/skills/ | wc -l | tr -d ' ')
-echo -e "  当前: $OLD_COUNT 个 skill"
+OLD_COUNT=$(ls .claude/skills/ 2>/dev/null | wc -l | tr -d ' ')
+echo -e "  当前版本: ${YELLOW}$OLD_COUNT 个 skill${NC}"
 echo
 
-# ─── 1. Clone 最新版 ───
+# ═══════════════════════════════════════════════════
+# Step 1: Clone 最新版
+# ═══════════════════════════════════════════════════
 echo -e "${BLUE}[1/3]${NC} 从 GitHub 拉取最新版..."
-git clone --depth 1 "$REPO" "$TMP_DIR" 2>/dev/null
+if ! git clone --depth 1 "$REPO" "$TMP_DIR" 2>/dev/null; then
+  echo
+  echo -e "${BG_RED}${BOLD}                                                        ${NC}"
+  echo -e "${BG_RED}${BOLD}   ❌ 拉取失败！无法连接 GitHub                         ${NC}"
+  echo -e "${BG_RED}${BOLD}                                                        ${NC}"
+  echo
+  echo -e "${RED}  skill 未更新,继续使用旧版本。${NC}"
+  echo -e "${RED}  修复网络后重新运行本脚本。${NC}"
+  echo
+  exit 1
+fi
 echo -e "${GREEN}  ✓ 拉取完成${NC}"
 
-# ─── 2. 更新 SKILL.md ───
+# ═══════════════════════════════════════════════════
+# Step 2: 更新 SKILL.md
+# ═══════════════════════════════════════════════════
 echo -e "${BLUE}[2/3]${NC} 更新 skill..."
 TARGET=".claude/skills"
 
@@ -69,7 +82,9 @@ for dir in "$TMP_DIR"/_orchestration/flutter-flow-*/; do
 done
 echo -e "${GREEN}  ✓ $count 个 skill 已更新${NC}"
 
-# ─── 3. 更新 _design / _knowledge / _governance ───
+# ═══════════════════════════════════════════════════
+# Step 3: 更新设计文档
+# ═══════════════════════════════════════════════════
 echo -e "${BLUE}[3/3]${NC} 更新设计文档..."
 rm -rf _design _knowledge _governance 2>/dev/null
 cp -r "$TMP_DIR/_design" . 2>/dev/null && echo -e "${GREEN}  ✓ _design${NC}" || true
@@ -79,13 +94,22 @@ cp -r "$TMP_DIR/_governance" . 2>/dev/null && echo -e "${GREEN}  ✓ _governance
 # ─── 清理 ───
 rm -rf "$TMP_DIR"
 
+# ═══════════════════════════════════════════════════
+# 完成提示
+# ═══════════════════════════════════════════════════
 echo
-echo -e "${GREEN}════════════════════════════════════════${NC}"
-echo -e "${GREEN}  更新完成！${NC}"
-echo -e "${GREEN}  - $OLD_COUNT → $count 个 skill${NC}"
-echo -e "${GREEN}  - _design + _knowledge + _governance 已更新${NC}"
-echo -e "${YELLOW}  - CLAUDE.md 未动（保留你的自定义）${NC}"
-echo -e "${YELLOW}  - .claude/settings.json 未动${NC}"
-echo -e "${GREEN}════════════════════════════════════════${NC}"
+echo -e "${BG_GREEN}${BOLD}                                                        ${NC}"
+echo -e "${BG_GREEN}${BOLD}   ✅ 更新完成！                                        ${NC}"
+echo -e "${BG_GREEN}${BOLD}                                                        ${NC}"
 echo
-echo "重新打开 Claude Code 即可使用最新 skill。"
+echo -e "  ${OLD_COUNT} → ${GREEN}${BOLD}$count 个 skill${NC}"
+echo -e "  ${GREEN}_design + _knowledge + _governance 已更新${NC}"
+echo -e "  ${YELLOW}CLAUDE.md 未改动（保留你的自定义）${NC}"
+echo -e "  ${YELLOW}settings.json 未改动${NC}"
+echo
+echo -e "${YELLOW}${BOLD}╔══════════════════════════════════════════════════╗${NC}"
+echo -e "${YELLOW}${BOLD}║                                                  ║${NC}"
+echo -e "${YELLOW}${BOLD}║   ⚠️  请重新打开 Claude Code 加载最新 skill!      ║${NC}"
+echo -e "${YELLOW}${BOLD}║                                                  ║${NC}"
+echo -e "${YELLOW}${BOLD}╚══════════════════════════════════════════════════╝${NC}"
+echo
