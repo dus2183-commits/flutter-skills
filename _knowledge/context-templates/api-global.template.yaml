@@ -1,0 +1,48 @@
+# ════════════════════════════════════════════════════════════════════
+#  API 全局配置 — 项目级 (只配一次)
+# ────────────────────────────────────────────────────────────────────
+#  位置: docs/_context/api-global.yaml
+#  作用: 所有 manifest 默认继承这里的配置,模块可通过 overrides 覆盖
+#  何时改: 换后端环境 / 改加密方式 / 改分页字段名 时改这里,一改全应用
+# ════════════════════════════════════════════════════════════════════
+
+# API 基地址(不含 /api 前缀,因为 ApiClient 会自动拼)
+baseUrl: http://localhost:8090/api/v1
+
+# 统一响应壳格式
+# 可选:
+#   "{code, data, msg}"      推荐 — 新项目用这个
+#   "{status, data, message}" 老项目兼容
+response_format: "{code, data, msg}"
+
+# 分页字段命名 (前端 → 后端字段名映射)
+page_fields:
+  page: page              # 页码字段名,有些后端叫 pageNum
+  size: page_size         # 每页条数字段名,有些后端叫 pageSize
+
+# API 字段命名风格
+# 可选:
+#   snake_case   user_name / created_at  — 推荐,后端常用
+#   camelCase    userName  / createdAt   — 老项目兼容
+naming: snake_case
+
+# 加密模式
+# 可选:
+#   none          不加密 (开发/调试)
+#   static_aes    AES-CBC 固定密钥 (轻度保护,推荐)
+#   dynamic       动态密钥 (高安全场景)
+encryption: static_aes
+
+# 超时配置 (秒)
+timeout:
+  connect: 10
+  receive: 30
+  send: 30
+
+# 业务错误码段位约定 (reflector 会按这个校验)
+error_code_ranges:
+  auth:          "1xxxx"   # 认证相关
+  business:      "2xxxx"   # 业务逻辑
+  permission:    "3xxxx"   # 权限
+  external:      "4xxxx"   # 第三方服务
+  system:        "5xxxx"   # 系统错误

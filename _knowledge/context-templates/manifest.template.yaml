@@ -1,0 +1,263 @@
+# ════════════════════════════════════════════════════════════════════
+#  Manifest — 批量开发清单 (每批任务一份)
+# ────────────────────────────────────────────────────────────────────
+#  位置: docs/manifests/manifest-v{N}.yaml  (N = 1,2,3... 递增)
+#  作用: 开发者填入路由/页面/接口/切图,flow-feature 读这份清单后批量生成代码
+#  用法:
+#    1. 用户执行: /flutter-manifest-init  → 生成空模版并递增版本号
+#    2. 用户填字段 (接口 JSON 从 Postman/Swagger 复制即可)
+#    3. 用户执行: /flutter-flow-feature manifest:docs/manifests/manifest-v{N}.yaml
+#    4. 生成前系统会快照当前代码到 .flow_checkpoint/gen-v{N}/,支持回退
+#  继承: global 段不用填 — 自动读 docs/_context/api-global.yaml
+# ════════════════════════════════════════════════════════════════════
+
+version: 1                         # manifest 版本,由 flutter-manifest-init 自动递增
+created_at: 2026-04-14
+generated_code_version: v1         # 代码快照版本,回退用
+
+# ════════════════════════════════════════════════════════════════════
+# 模块列表(可 1 个也可 N 个,N 个会并行 fan-out 子 Agent 同时做)
+# ════════════════════════════════════════════════════════════════════
+
+modules:
+
+  # ─── 示例 1:认证模块(纯代码+接口,无设计稿)────────────
+  - name: auth                     # snake_case,作 lib/features/{name}/ 目录名
+    chinese: 认证
+    priority: P0                   # P0(关键) / P1(重要) / P2(次要)
+
+    # (可选)覆盖项目级 api-global.yaml
+    # overrides:
+    #   baseUrl: https://auth.x.com/api/v1
+    #   encryption: dynamic
+
+    # ─── 路由落点 ───────────────────────────────────────
+    routes:
+      - path: /login
+        type: standalone           # standalone / tab / sub / modal / dialog / bottom_sheet
+        parent: null               # type=sub 时填父路由(如 /me)
+        position_note: "App 启动首页,未登录时进入"
+
+      - path: /register
+        type: standalone
+        parent: null
+        position_note: "登录页右上角跳转"
+
+    # ─── 页面清单 ───────────────────────────────────────
+    pages:
+      - name: login
+        spec_only: true            # 无设计稿,纯代码+spec 描述
+
+      - name: register
+        spec_only: true
+
+    # ─── 接口清单(JSON 直接从 Postman 复制)────────────
+    endpoints:
+      - method: POST
+        path: /auth/login
+        mockKey: auth_login
+        req_json: |
+          {
+            "email": "test@x.com",
+            "password": "123456"
+          }
+        resp_json: |
+          {
+            "code": 0,
+            "data": {
+              "token": "jwt.xxx.yyy",
+              "user": {
+                "id": 1,
+                "email": "test@x.com",
+                "name": "张三",
+                "avatar": "https://cdn.x/avatar.png",
+                "created_at": "2026-04-14T10:00:00Z"
+              }
+            },
+            "msg": "ok"
+          }
+
+      - method: POST
+        path: /auth/register
+        mockKey: auth_register
+        req_json: |
+          {
+            "email": "test@x.com",
+            "name": "张三",
+            "password": "123456",
+            "password_confirm": "123456"
+          }
+        resp_json: |
+          {
+            "code": 0,
+            "data": {
+              "token": "jwt.xxx.yyy",
+              "user": {"id": 1, "email": "test@x.com", "name": "张三"}
+            }
+          }
+
+    # auth 模块无手工切图
+    # manual_assets: []
+
+
+  # ─── 示例 2:帖子模块(有设计稿+接口+切图)────────────
+  - name: post
+    chinese: 帖子
+    priority: P0
+
+    routes:
+      - path: /post/list
+        type: tab                  # 底部 tab
+        parent: null
+        position_note: "底部导航第 2 个 tab"
+
+      - path: /post/detail
+        type: sub                  # 二级页
+        parent: /post/list
+        position_note: "列表点击进入"
+
+      - path: /post/create
+        type: modal                # 全屏 modal
+        parent: /post/list
+        position_note: "右上角 + 按钮弹出"
+
+      - path: /post/filter
+        type: bottom_sheet         # 底部抽屉
+        parent: /post/list
+        position_note: "列表顶部筛选按钮拉起"
+
+      - path: /post/share
+        type: dialog               # 小弹窗
+        parent: /post/detail
+        position_note: "详情页分享按钮"
+
+    pages:
+      - name: list
+        figma_url: https://figma.com/file/xxx?node-id=1-100
+      - name: detail
+        figma_url: https://figma.com/file/xxx?node-id=1-101
+      - name: create
+        figma_url: https://figma.com/file/xxx?node-id=1-102
+
+    endpoints:
+      - method: GET
+        path: /posts
+        mockKey: post_list
+        req_query: |
+          {
+            "page": 1,
+            "page_size": 20,
+            "category_id": null,
+            "q": null
+          }
+        resp_json: |
+          {
+            "code": 0,
+            "data": {
+              "list": [
+                {
+                  "id": 1,
+                  "title": "示例帖子",
+                  "cover": "https://cdn.x/cover.jpg",
+                  "author": {"id": 1, "name": "张三", "avatar": "https://cdn.x/a.png"},
+                  "likes": 10,
+                  "comments": 5,
+                  "created_at": "2026-04-14T10:00:00Z"
+                }
+              ],
+              "total": 100,
+              "page": 1,
+              "page_size": 20
+            }
+          }
+
+      - method: GET
+        path: /posts/{id}
+        mockKey: post_detail
+        resp_json: |
+          {
+            "code": 0,
+            "data": {
+              "id": 1,
+              "title": "示例帖子",
+              "content": "正文...",
+              "images": ["https://cdn.x/1.jpg"],
+              "author": {"id": 1, "name": "张三"},
+              "likes": 10,
+              "is_liked": false
+            }
+          }
+
+      - method: POST
+        path: /posts
+        mockKey: post_create
+        req_form: |
+          {
+            "title": "string",
+            "content": "string",
+            "images": "File[]"
+          }
+        resp_json: |
+          {
+            "code": 0,
+            "data": {"id": 101}
+          }
+
+    # ─── 手工切图(你自己切的,不用改名字,我们帮改)──
+    # src: 本地绝对路径 或 http(s):// URL
+    # purpose: icon / bg / btn / img / avatar / logo
+    #   icon        → ic_{module}_{n}.png
+    #   bg          → bg_{module}.png
+    #   btn         → btn_{module}_{action}.png
+    #   img         → img_{module}_{scene}.png
+    #   avatar      → avatar_{module}.png
+    #   logo        → logo_{module}.png
+    # 支持自动生成 3x/2x/1x (原图放 3x,缩放其余两档)
+    manual_assets:
+      - src: ~/Desktop/post_empty.png
+        purpose: img
+        scene: empty               # 拼进文件名 → img_post_empty.png
+
+      - src: https://cdn.x.com/share_icon.png
+        purpose: icon
+        n: 1                       # 多图加序号 → ic_post_1.png
+
+      - src: ~/Desktop/post_bg.jpg
+        purpose: bg                # → bg_post.jpg
+
+
+  # ─── 示例 3:纯 UI 模块(无接口,如关于页/设置页)────
+  - name: about
+    chinese: 关于
+    priority: P2
+
+    routes:
+      - path: /about
+        type: sub
+        parent: /me
+        position_note: "个人中心二级页"
+
+    pages:
+      - name: about
+        figma_url: https://figma.com/file/xxx?node-id=1-200
+
+    # 无接口则省略 endpoints
+    # endpoints: []
+
+    manual_assets:
+      - src: ~/Desktop/app_logo.png
+        purpose: logo              # → logo_about.png
+
+
+# ════════════════════════════════════════════════════════════════════
+# 填完运行: /flutter-flow-feature manifest:docs/manifests/manifest-v1.yaml
+# 系统将:
+#   1. 快照现有代码到 .flow_checkpoint/gen-v1/ (支持回退)
+#   2. 解析模块清单,校验字段
+#   3. 按模块 fan-out 并行子 Agent(每个模块走完整 9 步)
+#   4. 收尾跑 flutter-review + flutter-perf-audit + flutter analyze
+#   5. 产出 docs/review/{date}.md 汇总报告
+# 回退: /flutter-rollback          (列版本)
+#       /flutter-rollback v1       (整批回 v1)
+#       /flutter-rollback v1 post  (只回 post 模块,其他保留)
+# ════════════════════════════════════════════════════════════════════

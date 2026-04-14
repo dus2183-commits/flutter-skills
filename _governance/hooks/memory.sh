@@ -13,6 +13,7 @@
 #    - 用户反馈/决策
 # ════════════════════════════════════════════════════════════════════
 
+export PYTHONUTF8=1 PYTHONIOENCODING=utf-8 LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 exec /usr/bin/python3 <<'PYEOF'
 import json, os, glob
 from datetime import datetime

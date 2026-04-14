@@ -161,6 +161,30 @@ fvm dart run build_runner build --delete-conflicting-outputs
 
 输出路径默认 `lib/features/{module}/data/models/`，可通过 `output_path` 自定义。
 
+### ⛔ 文件命名铁律(违反 = reflector 拦截 + build_runner 不自动跑)
+
+**所有含 `@freezed` 或 `@JsonSerializable` 的文件必须以 `.model.dart` 结尾**,无一例外:
+
+- ✅ `login_response.model.dart`
+- ✅ `user.model.dart`
+- ✅ `post_author.model.dart`
+- ❌ `login_response.dart` — 缺 `.model` 中缀
+- ❌ `UserModel.dart` — 必须 snake_case
+- ❌ `user_model.dart` — 必须用 `.model.dart` 而不是 `_model.dart`
+
+**对应 part 声明也必须匹配:**
+```dart
+part 'login_response.model.freezed.dart';   // ✅
+part 'login_response.model.g.dart';         // ✅
+// 不是 'login_response.freezed.dart'       ❌
+```
+
+**为什么这条是硬性:**
+1. `auto-build-runner.sh` hook 检测 `*.model.dart` 才自动跑 build_runner
+2. `reflector.sh` 按命名白名单校验质量
+3. 团队代码搜索 `*.model.dart` 找所有实体
+4. `part` 声明必须匹配文件名,否则 `.freezed.dart` 引用错 → 编译失败
+
 ## 6. 代码模板
 
 以公告模块为例，生成的 freezed 实体类：

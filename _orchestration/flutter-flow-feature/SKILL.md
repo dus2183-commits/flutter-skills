@@ -39,6 +39,9 @@ owner: @lead
    [2] plan: docs/plans/{module}.md
    [3] api-design: docs/api/{module}.md
    [4] model-gen: lib/features/{module}/data/models/*.model.dart
+       ⛔ 文件名必须是 `{entity}.model.dart` (带 .model 中缀),不是 `{entity}.dart` 或 `{entity}_model.dart`
+       ⛔ part 声明必须是 `part '{entity}.model.freezed.dart';` + `part '{entity}.model.g.dart';`
+       ⛔ 否则 auto-build-runner hook 不触发,build_runner 不会自动跑,用户会看到 freezed 编译错误
    [5] api-gen: lib/features/{module}/data/repositories/*_repository.dart + mock/{module}/*.json
    [6] page-gen: lib/features/{module}/presentation/pages/{page_name}/ (三件套)
    [7] polishing (并行,4 个都要做):
@@ -126,7 +129,9 @@ owner: @lead
 
 ## 3. 输入
 
-**用户原始消息(自然语言)**,可能包含:
+### 模式 A — 自然语言(单模块,快速)
+
+**用户原始消息**,可能包含:
 - 功能描述(必须)
 - 模块英文名建议(可选,Conductor 可推断)
 - 引用的设计稿(可选,有则改走 design workflow)
@@ -134,6 +139,51 @@ owner: @lead
 
 **示例输入:**
 > "做一个公告模块,有列表和详情,能标记已读。列表分页,详情有富文本。"
+
+### 模式 B — Manifest 批量(多模块,推荐)
+
+**触发:** 用户消息含 `manifest:docs/manifests/manifest-v{N}.yaml` 或 `/flutter-flow-feature manifest:...`
+
+**执行流程:**
+1. **校验前置:** `docs/_context/api-global.yaml` 存在(manifest 会继承它)
+2. **读 manifest YAML,校验 schema:**
+   - 顶层必须有 `version` / `modules`
+   - 每模块必须有 `name`(snake_case) / `routes` / `pages`
+   - `endpoints[*].req_json`/`resp_json` 必须是合法 JSON(`json.loads(yaml_block)` 能过)
+   - `routes[*].type` 必须 ∈ `standalone / tab / sub / modal / dialog / bottom_sheet`
+   - `manual_assets[*].purpose` 必须 ∈ `icon / bg / btn / img / avatar / logo`
+   - 违反 → 报错,告诉用户哪行哪个字段,不继续
+3. **生成代码快照(回退用):**
+   ```bash
+   mkdir -p .flow_checkpoint/gen-v{N}/
+   # 计算本次会触及的文件路径列表 touched_files.txt
+   # 对每个存在的文件:tar 打包到 snapshot.tar.gz
+   # 对每个 NEW 文件:在 touched_files.txt 标 [NEW]
+   cp docs/manifests/manifest-v{N}.yaml .flow_checkpoint/gen-v{N}/
+   echo '{"modules":[...]}' > .flow_checkpoint/gen-v{N}/modules.json
+   ```
+4. **Fan-out 并行子 Agent:**
+   - 每模块一个 Agent,用段 "🤖 子 Agent 启动模板"
+   - 把 manifest 里该模块的字段**直接塞进** prompt 的 `## 模块信息` 段:
+     - `endpoints` → 填 `{swagger_json}` 位置(整块 JSON)
+     - `routes` → 指示 page-gen 把路由登记到 `lib/app/routes/app_pages.dart` 的哪个位置
+     - `manual_assets` → 子 Agent 先调 `flutter-asset-import` 导入,再继续 page-gen
+5. **收尾:** review / perf-audit / flutter analyze 同现有流程
+6. **写回 manifest:** 把 `generated_code_version` 字段锁死为 `v{N}`,防止二次运行
+
+**Manifest 模式优势:**
+- 批量清单一次性填,不用每模块来回对话
+- 接口 JSON 直接从 Postman 贴,免二次描述
+- 生成前快照,一键回退
+- 多模块真并行(N Agent 同时跑,比自然语言串行快 N 倍)
+
+### 模式判断规则
+
+| 用户消息 | 模式 | 说明 |
+|---|---|---|
+| 含 `manifest:xxx.yaml` | B | 读 manifest |
+| 含 "做 X 模块/功能" 但无 manifest | A | 自然语言,单模块 |
+| 含 "做 X 和 Y 两个模块" 无 manifest | **先反问** | 建议用户改用 manifest 模式(`/flutter-manifest-init`),多模块用 manifest 更稳 |
 
 **Conductor 解析后的结构化输入:**
 ```json

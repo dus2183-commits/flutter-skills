@@ -11,6 +11,7 @@
 #    1 spec → 2 plan → 3 api-design → 4 model → 5 api-gen → 6 page → 7 test
 # ════════════════════════════════════════════════════════════════════
 
+export PYTHONUTF8=1 PYTHONIOENCODING=utf-8 LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
 exec /usr/bin/python3 <<'PYEOF'
 import json, os, sys
 

@@ -14,11 +14,13 @@
 #    *_binding.dart: 用 lambda 不用 tearoff
 # ════════════════════════════════════════════════════════════════════
 
+export PYTHONUTF8=1 PYTHONIOENCODING=utf-8 LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+export HOOK_INPUT="$(cat)"
 exec /usr/bin/python3 <<'PYEOF'
 import json, os, re, sys
 
 try:
-    data = json.load(sys.stdin)
+    data = json.loads(os.environ.get("HOOK_INPUT", "{}"))
 except:
     sys.exit(0)
 
@@ -70,9 +72,9 @@ elif re.search(r"docs/plans/[^/]+\.md$", file_path):
         warnings.append("plan 缺少 mock 先行标记")
 
 # ─── *.model.dart 或 含 @freezed 的文件 ──────
-elif file_path.endswith(".model.dart") or "@freezed" in content:
+elif file_path.endswith(".model.dart") or "@freezed" in content or "@JsonSerializable" in content:
     if not file_path.endswith(".model.dart"):
-        warnings.append(f"命名不规范: 含 @freezed 的 model 应该叫 *.model.dart (当前: {os.path.basename(file_path)})")
+        blocking.append(f"命名违规: 含 @freezed/@JsonSerializable 的文件必须以 .model.dart 结尾 (当前: {os.path.basename(file_path)}) — 否则 auto-build-runner 不触发,build_runner 不自动跑,part '.freezed.dart' 引用也会错")
     if "@freezed" not in content:
         blocking.append("model 必须用 @freezed 注解")
     if "part " not in content:
