@@ -100,19 +100,82 @@ else
 fi
 
 # ═══════════════════════════════════════════════════
-# Step 4.5: 确保 hooks 可执行
+# Step 4.5: 合并 hooks 到 settings.json
 # ═══════════════════════════════════════════════════
+echo -e "${BLUE}[4.5/5]${NC} 配置 hooks..."
 if [ -d "_governance/hooks" ]; then
   chmod +x _governance/hooks/*.sh 2>/dev/null || true
-  echo -e "${GREEN}  ✓ hooks 脚本可执行${NC}"
 fi
 
-# 检查 settings.json 是否配了 hooks
-if [ -f ".claude/settings.json" ]; then
-  if ! grep -q "checkpoint.sh\|stop-check.sh" ".claude/settings.json"; then
-    echo -e "${YELLOW}  ⚠ .claude/settings.json 未配 hooks,建议手动合并 _governance/settings.template.json${NC}"
-  fi
-fi
+mkdir -p .claude
+
+/usr/bin/python3 <<'PYEOF'
+import json
+import os
+import sys
+
+SETTINGS = ".claude/settings.json"
+
+HOOKS_TO_ADD = {
+    "PostToolUse": [
+        {
+            "matcher": "Write|Edit",
+            "hooks": [
+                {"type": "command", "command": "bash _governance/hooks/checkpoint.sh"},
+                {"type": "command", "command": "bash _governance/hooks/auto-format.sh"}
+            ]
+        }
+    ],
+    "Stop": [
+        {
+            "hooks": [
+                {"type": "command", "command": "bash _governance/hooks/stop-check.sh"}
+            ]
+        }
+    ]
+}
+
+# 读现有 settings.json(如存在)
+if os.path.exists(SETTINGS):
+    with open(SETTINGS) as f:
+        try:
+            cfg = json.load(f)
+        except json.JSONDecodeError:
+            print("  ⚠ settings.json 格式错误,跳过 hook 合并")
+            sys.exit(0)
+else:
+    cfg = {}
+
+# 合并 hooks(保留已有的其他 hook)
+cfg.setdefault("hooks", {})
+
+for event, new_entries in HOOKS_TO_ADD.items():
+    existing = cfg["hooks"].get(event, [])
+
+    # 检查是否已经装过我们的 hook(靠命令字符串去重)
+    new_cmds = set()
+    for entry in new_entries:
+        for h in entry.get("hooks", []):
+            new_cmds.add(h["command"])
+
+    existing_cmds = set()
+    for entry in existing:
+        for h in entry.get("hooks", []):
+            existing_cmds.add(h.get("command", ""))
+
+    # 如果已经有这些命令,跳过
+    if new_cmds.issubset(existing_cmds):
+        continue
+
+    # 追加(不覆盖)
+    cfg["hooks"][event] = existing + new_entries
+
+# 写回
+with open(SETTINGS, "w") as f:
+    json.dump(cfg, f, indent=2, ensure_ascii=False)
+
+print("  ✓ hooks 已合并到 .claude/settings.json")
+PYEOF
 
 # ═══════════════════════════════════════════════════
 # Step 5: 全局 flutter-init
