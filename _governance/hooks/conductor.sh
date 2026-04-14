@@ -95,6 +95,50 @@ if os.path.exists(STATE_FILE):
 
 mod_state = state["modules"].get(match_module, {"step": 0, "last": None})
 
+# ─── 从 disk 回溯状态(state 文件丢失或漏记录时兜底)──
+import glob
+def detect_step_from_disk(module):
+    """扫 disk 计算该模块实际进度,返回 (step, is_pure_ui)"""
+    done = {}
+    done[1] = os.path.exists(f'docs/specs/{module}.md')
+    done[2] = os.path.exists(f'docs/plans/{module}.md')
+    done[3] = os.path.exists(f'docs/api/{module}.md')
+    done[4] = bool(glob.glob(f'lib/features/{module}/data/models/*.model.dart'))
+    done[5] = bool(glob.glob(f'lib/features/{module}/data/repositories/*_repository.dart'))
+
+    # 检测纯 UI 模块 — 读 spec 里的标记
+    is_pure_ui = False
+    spec_path = f'docs/specs/{module}.md'
+    if os.path.exists(spec_path):
+        try:
+            with open(spec_path, encoding='utf-8') as f:
+                spec = f.read()
+            for marker in ['无接口', '本模块无接口', '不涉及任何后端接口',
+                           '不调任何接口', '纯 UI', 'pure UI', '无 API']:
+                if marker in spec:
+                    is_pure_ui = True
+                    break
+        except:
+            pass
+
+    # 纯 UI 自动标 api 相关 3 步为完成
+    if is_pure_ui:
+        done[3] = done[4] = done[5] = True
+
+    # 最高连续完成的 step
+    step = 0
+    for i in range(1, 8):
+        if done.get(i):
+            step = i
+        else:
+            break
+    return step, is_pure_ui
+
+disk_step, is_pure_ui = detect_step_from_disk(match_module)
+if disk_step > mod_state["step"]:
+    mod_state["step"] = disk_step
+    mod_state["pure_ui"] = is_pure_ui
+
 if EVENT == "PreToolUse":
     # 检查依赖是否满足
     required_prev = match_step - 1
@@ -102,6 +146,10 @@ if EVENT == "PreToolUse":
     # 特殊: test-gen 依赖 step 5 (api-gen),不需要 6
     if match_name == 'test-gen':
         required_prev = 5
+
+    # 纯 UI 模块:page-gen 只依赖 plan(step 2),跳过 api-design/model-gen/api-gen
+    if is_pure_ui and match_name in ('page-gen', 'test-gen'):
+        required_prev = 2
 
     if mod_state["step"] < required_prev:
         missing = []
