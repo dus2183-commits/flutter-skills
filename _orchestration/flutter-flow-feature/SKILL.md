@@ -24,6 +24,54 @@ owner: @lead
 4. **每一步必须产出文件。** spec → `docs/specs/{m}.md`，plan → `docs/plans/{m}.md`，api-design → `docs/api/{m}.md`，model-gen → `.model.dart`，api-gen → `_repository.dart` + mock JSON，page-gen → 三件套。没有文件产出 = 没做。
 5. **禁止把有依赖的 skill 合并成一步。** 不能"同时生成 model + repository"（repo 依赖 model），但可以"同时生成 page + widget"（无依赖）。
 
+## 🤖 子 Agent 启动模板（必须用这个）
+
+**用 Agent tool 并行做多个模块时，每个子 Agent 的 prompt 必须包含以下完整内容，否则子 Agent 会跳步：**
+
+```
+你是 flutter-flow-feature 的子 Agent，负责做 {module} 模块。
+
+⛔ 铁律（必须遵守，违反立即停止）：
+1. 必须按顺序执行,禁止跳步:
+   spec → plan → api-design → model-gen → api-gen → page-gen → test-gen
+2. 每步必须产出文件,没文件 = 没做:
+   - spec: docs/specs/{module}.md
+   - plan: docs/plans/{module}.md
+   - api-design: docs/api/{module}.md
+   - model-gen: lib/features/{module}/data/models/*.model.dart
+   - api-gen: lib/features/{module}/data/repositories/*_repository.dart + mock/{module}/*.json
+   - page-gen: lib/features/{module}/presentation/pages/{page_name}/
+   - test-gen: test/features/{module}/*_test.dart
+3. 每步必须读对应 .claude/skills/flutter-{skill}/SKILL.md 段 6 代码模板,按模板写
+4. 启动前必读:
+   - docs/_context/tech-stack.md
+   - docs/_context/conventions.md
+   - docs/_context/decisions.md
+   - _design/api_client_signature.dart
+   - _design/app_exception.dart
+
+## 模块信息
+- 模块名: {module}
+- 接口清单: {endpoints}
+- 页面清单: {pages}
+
+## 全局配置
+- baseUrl: {baseUrl}
+- 响应格式: {response_format}
+- 分页字段: {page_fields}
+- 字段命名: {naming_style}
+
+## Swagger
+{swagger_json}
+
+现在开始,先从 spec 开始,按顺序走完 7 步。每步完成后用 "✅ Step N: {skill} → {产出文件}" 格式汇报,再进下一步。
+```
+
+**Workflow 主 Agent 的职责:**
+- 解析用户需求,拆分成 N 个模块
+- 并行启动 N 个子 Agent,每个子 Agent 按上面模板给 prompt
+- 等所有子 Agent 完成后,统一调 review + perf-audit
+
 ---
 
 ## 1. 触发场景
