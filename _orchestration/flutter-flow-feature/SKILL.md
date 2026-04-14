@@ -67,10 +67,28 @@ owner: @lead
 现在开始,先从 spec 开始,按顺序走完 7 步。每步完成后用 "✅ Step N: {skill} → {产出文件}" 格式汇报,再进下一步。
 ```
 
-**Workflow 主 Agent 的职责:**
-- 解析用户需求,拆分成 N 个模块
-- 并行启动 N 个子 Agent,每个子 Agent 按上面模板给 prompt
-- 等所有子 Agent 完成后,统一调 review + perf-audit
+**Workflow 主 Agent 的职责（必须做完所有步骤）:**
+1. 解析用户需求,拆分成 N 个模块
+2. 并行启动 N 个子 Agent,每个子 Agent 按上面模板给 prompt
+3. 等所有子 Agent 完成后 — **必须做以下收尾工作,禁止跳过**:
+   - 调 flutter-review → 产出 `docs/review/{date}.md`（读 `_knowledge/artifact-templates/review.template.md` 模板）
+   - 调 flutter-perf-audit → 产出 `docs/review/{date}-perf.md`
+   - 跑 `fvm flutter analyze` 验证 0 error
+   - 输出汇总报告给用户
+
+**收尾检查清单（main Agent 必须逐项确认）:**
+- [ ] 每个模块都有 docs/specs/{m}.md
+- [ ] 每个模块都有 docs/plans/{m}.md
+- [ ] 每个模块都有 docs/api/{m}.md
+- [ ] 每个模块都有 lib/features/{m}/data/models/
+- [ ] 每个模块都有 lib/features/{m}/data/repositories/
+- [ ] 每个模块都有 lib/features/{m}/presentation/pages/
+- [ ] 每个模块都有 mock/{m}/
+- [ ] 每个模块都有 test/features/{m}/
+- [ ] 有 docs/review/{date}.md
+- [ ] `fvm flutter analyze` 0 error
+
+**缺任何一项 = 流水线未完成,必须补齐。**
 
 ---
 
