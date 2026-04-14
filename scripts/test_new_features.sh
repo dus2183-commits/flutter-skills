@@ -143,7 +143,7 @@ check_route "生成清单模板" "flutter-manifest-init"
 check_route "我要批量做几个模块" "flutter-manifest-init"
 check_route "回退到 v2" "flutter-rollback"
 check_route "导入切图" "flutter-asset-import"
-check_route "做一个登录模块" "flutter-flow-feature"
+check_route "做一个登录模块" "flutter-dev"
 
 # ════════════════════════════════════════════════════════════════════
 # Test 7: Router 歧义提示(同时匹配 flow-feature + flow-design)
