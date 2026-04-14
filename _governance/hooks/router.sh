@@ -96,9 +96,6 @@ for patterns, skill in RULES:
             matches.append(skill)
             break
 
-if not matches:
-    sys.exit(0)
-
 # 去重保序
 seen = set()
 unique = []
@@ -112,11 +109,51 @@ has_feature = any("flow-feature" in s for s in unique)
 has_design  = any("flow-design"  in s for s in unique)
 ambiguous_workflow = has_feature and has_design
 
-# 输出提示(stderr)
-print("", file=sys.stderr)
-print("🎯 Router 建议:", file=sys.stderr)
-for i, skill in enumerate(unique[:3], 1):
-    print(f"   {i}. 使用 {skill}", file=sys.stderr)
+# ═══════════════════════════════════════════════════════════════════
+# 检测 Figma URL 注入强制指令(防止 figma MCP 的 implement-design 抢优先级)
+# ═══════════════════════════════════════════════════════════════════
+has_figma_url = bool(re.search(r"figma\.com/(design|file)", prompt))
+has_feature_intent = any(re.search(pat, p) for pat in [
+    "做.*模块", "实现.*功能", "新需求", "做.*页面", "做.*界面",
+    "splash", "启动页", "登录页", "首页", "列表", "详情",
+    "按.*工作流", "flow-feature", "走完整"
+])
+
+if has_figma_url and has_feature_intent:
+    # stdout 注入 — UserPromptSubmit hook 的 stdout 会追加到 prompt context
+    print("")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("⛔ [Router 强制指令] 检测到 Figma URL + 功能开发意图")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("")
+    print("你必须使用 flutter-flow-feature 工作流,走完整 9 步流水线:")
+    print("  spec → plan → (api-design/model/repo 按需) → page-gen →")
+    print("  polishing → test-gen → review")
+    print("")
+    print("禁止行为:")
+    print("  ❌ 不许调用 figma:figma-implement-design")
+    print("  ❌ 不许调用 figma-implement-design")
+    print("  ❌ 不许跳过 spec/plan 直接写代码")
+    print("  ❌ 不许用 figma.com/api/mcp/asset/... URL 当生产代码(7 天过期)")
+    print("")
+    print("允许行为:")
+    print("  ✅ 调用 figma MCP 的 get_screenshot / 读节点属性(只是数据来源)")
+    print("  ✅ 用 curl 把切图下载到 assets/image/3.0x/{module}/")
+    print("  ✅ 每步完成汇报 '✅ Step N: 产出' 再进下一步")
+    print("")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print("")
+
+# 没匹配到 skill 且没 Figma 注入的话,直接退出
+if not unique and not (has_figma_url and has_feature_intent):
+    sys.exit(0)
+
+# 输出提示(stderr,advisory)
+if unique:
+    print("", file=sys.stderr)
+    print("🎯 Router 建议:", file=sys.stderr)
+    for i, skill in enumerate(unique[:3], 1):
+        print(f"   {i}. 使用 {skill}", file=sys.stderr)
 
 if ambiguous_workflow:
     print("", file=sys.stderr)
@@ -125,7 +162,7 @@ if ambiguous_workflow:
     print("   (A) 新功能模块 → flutter-flow-feature (完整 9 步:spec/plan/api/model/repo/page/i18n/test/review)", file=sys.stderr)
     print("   (B) 纯 UI 改版 → flutter-flow-design (仅:设计提取/切图/page-gen/review)", file=sys.stderr)
     print("   判断依据:需要新增接口/model 吗? 需要 → A;只重画已有页面 → B。", file=sys.stderr)
-else:
+elif unique:
     print("   (根据你的输入匹配,仅供参考)", file=sys.stderr)
 print("", file=sys.stderr)
 PYEOF

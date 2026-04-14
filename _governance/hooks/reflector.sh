@@ -44,6 +44,15 @@ except:
 blocking = []  # 致命问题,exit 2
 warnings = []  # 警告
 
+# ─── 全局:任何 .dart 文件都不许出现 figma MCP URL ──
+if file_path.endswith(".dart") and re.search(r"figma\.com/api/mcp/asset", content):
+    blocking.append("禁止在 Dart 代码里写 figma.com/api/mcp/asset URL (7 天过期),必须 curl 下载到 assets/image/3.0x/{module}/ 后改 Image.asset")
+
+# ─── 全局:spec.md 不许写"CDN 过期"后门话术 ──
+if file_path.endswith(".md") and "docs/specs/" in file_path:
+    if re.search(r"(CDN.*过期|7 天.*替换|MCP.*URL.*有效期|之后替换为本地)", content):
+        blocking.append("spec 不许写'CDN 过期后再替换本地'的后门话术,必须写'page-gen 阶段切图必须下载到本地,禁止 CDN URL 中间态'")
+
 # ─── spec.md ────────────────────────────────
 if re.search(r"docs/specs/[^/]+\.md$", file_path):
     sections = [f"## {i}." for i in range(1, 8)]
@@ -112,6 +121,8 @@ elif file_path.endswith("_page.dart"):
         blocking.append("长列表必须用 ListView.builder,不能用 ListView(children:)")
     if "RefreshIndicator" in content and "EasyRefresh" not in content:
         warnings.append("推荐用 EasyRefresh 替代 RefreshIndicator (下拉+上拉)")
+    if re.search(r"figma\.com/api/mcp/asset", content):
+        blocking.append("禁止在生产代码里写 figma.com/api/mcp/asset URL (7 天过期),必须用 curl 下载到 assets/image/3.0x/{module}/ 后改成 Image.asset")
 
 # ─── *_controller.dart ──────────────────────
 elif file_path.endswith("_controller.dart"):

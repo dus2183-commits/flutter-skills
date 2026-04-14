@@ -247,6 +247,96 @@ echo "  ❌ 失败: $FAIL"
 echo "  ⚠️  警告: $WARN"
 echo "═══════════════════════════════════════"
 
+# ════════════════════════════════════════════════════════════════════
+# Test 12: Router 检测 Figma URL + 功能意图 → stdout 注入强制指令
+# ════════════════════════════════════════════════════════════════════
+title "Test 12 — Figma URL 注入强制指令"
+
+OUT=$(echo '{"prompt":"做一个 splash 启动页 https://www.figma.com/design/abc?node-id=1-43 纯UI"}' | \
+      bash _governance/hooks/router.sh 2>/dev/null)
+if echo "$OUT" | grep -q "不许.*figma-implement-design\|禁止.*figma-implement-design"; then
+  pass "Figma URL + 功能意图 → 注入禁令"
+else
+  fail "未注入禁令 (stdout: $OUT)"
+fi
+
+# 无 Figma URL 不应注入
+OUT2=$(echo '{"prompt":"做一个 auth 模块"}' | bash _governance/hooks/router.sh 2>/dev/null)
+if echo "$OUT2" | grep -q "强制指令"; then
+  fail "无 Figma URL 也注入了 (不应该)"
+else
+  pass "无 Figma URL 不注入"
+fi
+
+# ════════════════════════════════════════════════════════════════════
+# Test 13: Reflector 拦截 .dart 里的 figma MCP URL
+# ════════════════════════════════════════════════════════════════════
+title "Test 13 — Reflector 拦截 figma MCP URL"
+
+TMP_DART=$(mktemp -t ref_mcp_XXXXXX).dart
+cat > "$TMP_DART" <<'DARTEOF'
+const _kLogo = 'https://www.figma.com/api/mcp/asset/92a13c99-eead-4215-9f2b';
+DARTEOF
+INPUT=$(printf '{"tool_name":"Write","tool_input":{"file_path":"%s"}}' "$TMP_DART")
+OUT=$(echo "$INPUT" | bash _governance/hooks/reflector.sh 2>&1 || true)
+if echo "$OUT" | grep -q "figma.com/api/mcp/asset"; then
+  pass "Reflector 拦截 MCP URL"
+else
+  fail "Reflector 未拦截 (输出: $OUT)"
+fi
+rm -f "$TMP_DART"
+
+# ════════════════════════════════════════════════════════════════════
+# Test 14: Reflector 拦截 spec.md 的 CDN 后门话术
+# ════════════════════════════════════════════════════════════════════
+title "Test 14 — Reflector 拦截 spec CDN 后门"
+
+TMP_DIR=$(mktemp -d)
+mkdir -p "$TMP_DIR/docs/specs"
+SPEC_FILE="$TMP_DIR/docs/specs/splash.md"
+cat > "$SPEC_FILE" <<'MDEOF'
+## 1. 目标
+...
+## 2. 涉及页面
+## 3. 页面流转
+## 4. 接口需求
+## 5. 关键字段
+## 6. 异常场景
+- a
+- b
+- c
+## 7. 非功能需求
+Figma CDN URL 有效期 7 天,之后替换为本地资源
+MDEOF
+
+INPUT=$(printf '{"tool_name":"Write","tool_input":{"file_path":"%s"}}' "$SPEC_FILE")
+OUT=$(echo "$INPUT" | bash _governance/hooks/reflector.sh 2>&1 || true)
+if echo "$OUT" | grep -q "后门话术"; then
+  pass "Reflector 拦截 spec CDN 后门"
+else
+  fail "Reflector 未拦截 spec 后门 (输出: $OUT)"
+fi
+rm -rf "$TMP_DIR"
+
+# ════════════════════════════════════════════════════════════════════
+# Test 15: CLAUDE.md 模板有 Figma URL 铁律段
+# ════════════════════════════════════════════════════════════════════
+title "Test 15 — CLAUDE.md 模板有 Figma 铁律"
+
+if grep -q "Figma URL 处理铁律" flutter-init/template/CLAUDE.md; then
+  pass "CLAUDE.md 有 Figma URL 铁律段"
+else
+  fail "CLAUDE.md 缺 Figma URL 铁律"
+fi
+
+# ════════════════════════════════════════════════════════════════════
+echo ""
+echo "═══════════════════════════════════════"
+echo "  ✅ 通过: $PASS"
+echo "  ❌ 失败: $FAIL"
+echo "  ⚠️  警告: $WARN"
+echo "═══════════════════════════════════════"
+
 if [ "$FAIL" -gt 0 ]; then
   exit 1
 else

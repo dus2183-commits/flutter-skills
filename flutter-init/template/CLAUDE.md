@@ -33,6 +33,28 @@
 
 skill 文件在 `~/.claude/skills/flutter-*/SKILL.md`。
 
+## ⛔ Figma URL 处理铁律(违反=重做)
+
+**当用户消息包含 `figma.com/design/...` 或 `figma.com/file/...` 链接时:**
+
+### 必须做
+1. 判断用户意图:
+   - "做 X 模块/页面/功能" → 用 **flutter-flow-feature**(走完整 9 步)
+   - "重画 X 页/改版 UI" → 用 **flutter-flow-design**(UI-only 流程)
+2. Figma URL 仅作为"节点参考数据源":
+   - 允许调 `figma:get_code`、`figma:get_screenshot`、`figma:get_variable_defs` 读取节点
+   - 允许用 curl 把切图真正下载到 `assets/image/3.0x/{module}/`
+3. 代码生成必须走我们的工作流,每步产出文件
+
+### 禁止做
+- ❌ 直接调用 `figma:figma-implement-design` / `figma-implement-design` skill(一键生成会跳过 spec/plan/test/review)
+- ❌ 在 Dart 代码里硬编码 `https://www.figma.com/api/mcp/asset/...` URL(7 天过期)
+- ❌ 跳过 spec 直接写 page/controller
+
+### 判断依据
+- 代码里出现 `figma.com/api/mcp/asset` 字符串 = 违规 → reflector 会 blocking
+- 生成代码时没产出 `docs/specs/{m}.md` = 跳过 spec → conductor 会 blocking
+
 ### Model: 必须 freezed
 - `@freezed` + `part .freezed.dart` + `part .g.dart` + `factory fromJson`
 - snake_case 字段加 `@JsonKey(name: 'xxx')`
