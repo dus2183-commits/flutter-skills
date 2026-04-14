@@ -151,7 +151,51 @@ flutter:
     - assets/image/3.0x/{module}/
 ```
 
-**如果 MCP 不给 URL**（Figma 权限限制）→ 降级切图清单方案
+**curl 失败时的 3 级降级(禁止降级到"用文字"):**
+
+**Level 1 — curl 权限被拒:**
+检查 `.claude/settings.json`,`Bash(curl:*)` 是否在 deny 里。告诉用户:
+```
+curl 被拒,请编辑 .claude/settings.json 把 "Bash(curl:*)" 从 deny 移到 allow,
+然后说"重试下载",我继续。
+```
+❌ 不要自己 fallback 到"用文字 logo",这是糟糕 UX。
+
+**Level 2 — MCP 不给 URL(Figma 权限限制):**
+生成 `docs/manual-download-{module}.md`,列出所有切图:
+```markdown
+# {module} 模块手动下载清单
+
+以下切图 Figma MCP 无法自动下载,请手动操作:
+
+1. Figma 里打开节点 `1:43`
+2. 选中以下图层,Export 为 3x PNG
+3. 下载后重命名并放到指定路径
+
+| Figma 图层 | 重命名为 | 目标路径 |
+|---|---|---|
+| Icon/home/Bell | ic_home_bell.png | assets/image/3.0x/home/ |
+| Logo/AppLogo | logo_app.png | assets/image/3.0x/splash/ |
+...
+
+下载完跑: `fvm flutter pub get`,然后说"切图已手动放置,继续"。
+```
+❌ 不要 fallback 到文字。
+
+**Level 3 — 用户确认手动搞不定:**
+临时用 Flutter 自带的占位图标(`Icons.image` / 灰色 Container),但 **必须在代码里加 TODO:**
+```dart
+// TODO: 替换为 assets/image/3.0x/splash/logo_app.png (Figma node 1:43)
+Container(width: 80, height: 80, color: Colors.grey[300])
+```
+并在 `docs/review/{date}-{module}.md` 的 "遗留项" 段记录。
+
+**唯一禁止的 fallback: 把设计里的图形元素改成纯文字(如 Image → Text)。
+这改变了设计意图,是 bug 不是 fallback。**
+
+---
+
+**如果 MCP 不给 URL**（Figma 权限限制）→ 降级到 Level 2 切图清单方案
 
 **Step 3 — 设计信息标准化**
 
