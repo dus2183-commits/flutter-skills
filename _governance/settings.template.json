@@ -38,7 +38,14 @@
       "Bash(git diff)",
       "Bash(git log:*)",
       "Bash(git stash)",
-      "Bash(git stash pop)"
+      "Bash(git stash pop)",
+      "Bash(curl * figma.com*)",
+      "Bash(curl * figma.com/*)",
+      "Bash(curl * raw.githubusercontent.com*)",
+      "Bash(curl * picsum.photos*)",
+      "Bash(curl * -o assets/*)",
+      "Bash(curl -L -o assets/*)",
+      "Bash(curl -L -o * figma*)"
     ],
     "deny": [
       "Write(.env.prod)",
@@ -53,7 +60,6 @@
       "Bash(git reset --hard:*)",
       "Bash(git commit:*)",
       "Bash(git checkout:*)",
-      "Bash(curl:*)",
       "Bash(wget:*)",
       "Bash(npm publish:*)",
       "Bash(pub publish:*)"
