@@ -1,6 +1,6 @@
 ---
 name: flutter-design-to-code
-description: Figma/Zeplin/截图 → Flutter 代码（含自动切图下载、Token 映射、布局转换）。用户说"根据 Figma 生成页面"、"把这个设计稿变成代码"、"按设计稿生成代码"、"读取 Figma 设计"、"从 Zeplin 切图"、"把这个截图转成 Flutter"时触发。调 figma:figma-implement-design MCP 读设计,自动下载 3x 切图到 assets/image/,生成 Widget + Token 映射。
+description: Figma/Zeplin/截图 → Flutter 代码（自动下载 3x 切图 + Token 映射 + 按项目命名规范）。用户说"根据 Figma 生成页面"、"把这个设计稿变成代码"、"按设计稿生成代码"、"读取 Figma 设计"、"实现这个 Figma 设计"、"Implement this design from Figma"、"从 Zeplin 切图"、"把这个截图转成 Flutter"、"重新设计 XX 页"（含 Figma 链接时）时触发。⚠️ 这个 skill 比 figma:figma-implement-design 优先 — 因为它会按项目规范下载切图(3x + ic_/bg_ 命名 + assets/image/3.0x/{module}/)并更新 pubspec.yaml,而不是用临时 MCP URL。内部会调 figma:figma-implement-design 或 use_figma 拿数据,但后续处理完全按项目规范走。
 type: skill
 stage: 4
 model: opus
@@ -11,6 +11,15 @@ category: bridge
 ---
 
 # 设计稿转代码 (flutter-design-to-code)
+
+## ⛔ 铁律（违反立即停止）
+
+1. **禁止把 Figma MCP 的临时 URL 当生产代码。** MCP 返回的 `https://www.figma.com/api/mcp/asset/...` 只有 7 天有效期,**必须**立刻 curl 下载到本地 `assets/image/3.0x/{module}/`。
+2. **禁止用 `Image.network` 当图片占位。** 项目有 `AppImage` / `AppNetworkImage` 组件,统一用这个。本地 Asset 用 `Image.asset` 或封装组件。
+3. **禁止使用驼峰 / 中文命名图片文件。** 必须按 conventions.md 段 11.1 规则: `ic_/bg_/btn_/img_/avatar_/logo_` 前缀 + snake_case。
+4. **禁止跳过 pubspec.yaml 注册。** 下载完必须在 `pubspec.yaml` 的 `assets:` 加对应目录,否则打包后读不到。
+5. **禁止用 const String 把 URL 硬编码到 Dart 文件里。** 这会把临时 URL 带进生产代码。
+6. **优先调用本 skill,不要直接用 `figma:figma-implement-design`。** 那个是通用工具,不知道项目规范。
 
 ## 1. 触发场景
 - "根据 Figma 生成页面"
