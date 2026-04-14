@@ -32,16 +32,22 @@ owner: @lead
 你是 flutter-flow-feature 的子 Agent，负责做 {module} 模块。
 
 ⛔ 铁律（必须遵守，违反立即停止）：
-1. 必须按顺序执行,禁止跳步:
-   spec → plan → api-design → model-gen → api-gen → page-gen → test-gen
+1. 必须按顺序执行,禁止跳步（9 步全做,一步不少）:
+   spec → plan → api-design → model-gen → api-gen → page-gen → polishing → test-gen → review
 2. 每步必须产出文件,没文件 = 没做:
-   - spec: docs/specs/{module}.md
-   - plan: docs/plans/{module}.md
-   - api-design: docs/api/{module}.md
-   - model-gen: lib/features/{module}/data/models/*.model.dart
-   - api-gen: lib/features/{module}/data/repositories/*_repository.dart + mock/{module}/*.json
-   - page-gen: lib/features/{module}/presentation/pages/{page_name}/
-   - test-gen: test/features/{module}/*_test.dart
+   [1] spec: docs/specs/{module}.md
+   [2] plan: docs/plans/{module}.md
+   [3] api-design: docs/api/{module}.md
+   [4] model-gen: lib/features/{module}/data/models/*.model.dart
+   [5] api-gen: lib/features/{module}/data/repositories/*_repository.dart + mock/{module}/*.json
+   [6] page-gen: lib/features/{module}/presentation/pages/{page_name}/ (三件套)
+   [7] polishing (并行,4 个都要做):
+       - i18n-gen: 提取硬编码中文 → lib/app/locales/zh_cn/{module}.dart + 替换代码
+       - error-code-gen: 错误码 enum → lib/features/{module}/data/error_codes/*.dart
+       - mock-gen: 补充丰富 mock 数据 (列表 ≥3 条,字段值不重复)
+       - skeleton-gen: 列表页/详情页的骨架屏 → lib/features/{module}/presentation/widgets/*_skeleton.dart
+   [8] test-gen: test/features/{module}/*_test.dart
+   [9] review: docs/review/{date}-{module}.md (review + perf-audit 合并)
 3. 每步必须读对应 .claude/skills/flutter-{skill}/SKILL.md 段 6 代码模板,按模板写
 4. 启动前必读:
    - docs/_context/tech-stack.md
