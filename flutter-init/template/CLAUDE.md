@@ -43,6 +43,14 @@
 
 skill 文件在 `~/.claude/skills/flutter-*/SKILL.md`。
 
+## ⛔ 下载后不要 Read 图片文件(避免 API 400 卡死)
+
+curl 下载 PNG/JPG 等二进制图片后,**禁止用 Read 工具读取该文件**:
+- Read 大图会触发 API 400 "Could not process image",Claude 可能卡住
+- 验证图存在用 Bash 的 `ls -lh` 或 `file <path>`
+- SVG (XML 文本) 可以 Read
+- 阈值:>1MB 的图必卡,建议所有图都不 Read
+
 ## ⛔ Figma URL 处理铁律(违反=重做)
 
 **当用户消息包含 `figma.com/design/...` 或 `figma.com/file/...` 链接时:**

@@ -151,6 +151,28 @@ flutter:
     - assets/image/3.0x/{module}/
 ```
 
+## ⚠️ 下载后的验证规则(避免卡死)
+
+**curl 下载完图片,禁止用 Read 工具读取图片文件**:
+- ❌ Read `assets/image/3.0x/splash/bg_splash.png`(2MB+ 会 API 400 "Could not process image",直接卡住)
+- ❌ Read 任何 .png / .jpg / .jpeg / .gif / .webp 文件超过 ~1MB
+- ✅ 用 `Bash` + `ls -lh` 查文件大小,确认 > 0 即存在
+- ✅ 用 `Bash` + `file <path>` 确认文件类型(PNG image / JPEG image 等)
+- ✅ SVG 文件(文本格式)可以 Read,因为是 XML
+
+**标准验证流程:**
+```bash
+ls -lh assets/image/3.0x/{module}/
+```
+预期输出每行含文件名和 > 0 大小即通过,无需 Read 图本体。
+
+**如果某张图 curl 失败(size = 0 或文件不存在):**
+- 加入 `docs/manual-download-{module}.md` 给用户
+- 代码中该位置用占位(灰块+红边+TODO 标记),保持结构
+- **不要停下来等用户** — 继续其他步骤,最后在 review.md 的"遗留项"段列出
+
+---
+
 **curl 失败时的 3 级降级(禁止降级到"用文字"):**
 
 **Level 1 — curl 权限被拒 或 自动下载任何原因失败:**
