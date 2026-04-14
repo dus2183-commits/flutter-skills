@@ -282,3 +282,63 @@ import '../models/announce.model.dart';
 
 ### 10.2 一个文件一个 public class
 私有 class 可以同文件,public class 必须独立文件。
+
+---
+
+## 11. 资源文件命名规范
+
+### 11.1 图片命名（强制）
+
+**格式：** `{前缀}_{模块}_{名称}.{扩展名}`
+
+| 前缀 | 用途 | 例 |
+|------|------|-----|
+| `ic_` | 图标（Icon） | `ic_home_bell.png` / `ic_common_arrow_right.svg` |
+| `bg_` | 背景图 | `bg_login.png` / `bg_home_banner.jpg` |
+| `btn_` | 按钮图片 | `btn_primary_pressed.png` |
+| `img_` | 插图/大图 | `img_empty_list.png` |
+| `avatar_` | 头像 | `avatar_default.png` |
+| `logo_` | Logo | `logo_app.png` / `logo_brand.svg` |
+
+**规则：**
+- **全小写**，下划线分隔
+- **禁止**驼峰 `iconHome.png` ❌
+- **禁止**中文 `首页图标.png` ❌
+- **禁止**空格/特殊字符
+- 模块名和文件名用 snake_case
+
+### 11.2 倍图目录
+
+Flutter 标准约定（Flutter 自动按 `devicePixelRatio` 选倍数）：
+
+```
+assets/image/
+├── {module}/              ← 1x 原图（可选）
+│   └── ic_home.png
+├── 2.0x/{module}/         ← 2x
+│   └── ic_home.png
+└── 3.0x/{module}/         ← 3x（推荐默认,一套覆盖所有设备）
+    └── ic_home.png
+```
+
+**推荐策略：** 只导 3x（Flutter runtime 自动降级到 2x/1x 设备），省空间。
+
+### 11.3 Figma 切图自动下载规则
+
+`flutter-design-to-code` / `flutter-mcp` 自动下载 Figma 切图时,**必须**遵守：
+
+1. 默认导 3x，保存到 `assets/image/3.0x/{module}/`
+2. 文件名按 11.1 的前缀规则重命名（Figma 原名通常不合规）
+3. 如 Figma 原名含中文，必须翻译或音译为英文
+4. 更新 `pubspec.yaml` 的 `assets:` 段
+
+### 11.4 pubspec.yaml 注册
+
+```yaml
+flutter:
+  assets:
+    - assets/image/common/       # 通用图片(不分模块)
+    - assets/image/3.0x/common/  # 通用 3x
+    - assets/image/3.0x/home/    # home 模块 3x
+    - assets/image/3.0x/mine/    # mine 模块 3x
+```
