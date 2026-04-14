@@ -117,12 +117,32 @@ import sys
 SETTINGS = ".claude/settings.json"
 
 HOOKS_TO_ADD = {
+    "PreToolUse": [
+        {
+            "matcher": "Write|Edit",
+            "hooks": [
+                {"type": "command", "command": "bash _governance/hooks/guard-core.sh"}
+            ]
+        },
+        {
+            "matcher": "Bash",
+            "hooks": [
+                {"type": "command", "command": "bash _governance/hooks/guard-git.sh"}
+            ]
+        }
+    ],
     "PostToolUse": [
         {
             "matcher": "Write|Edit",
             "hooks": [
                 {"type": "command", "command": "bash _governance/hooks/checkpoint.sh"},
-                {"type": "command", "command": "bash _governance/hooks/auto-format.sh"}
+                {"type": "command", "command": "bash _governance/hooks/auto-format.sh"},
+                {"type": "command", "command": "bash _governance/hooks/auto-build-runner.sh"}
+            ]
+        },
+        {
+            "hooks": [
+                {"type": "command", "command": "bash _governance/hooks/telemetry.sh"}
             ]
         }
     ],

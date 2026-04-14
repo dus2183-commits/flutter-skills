@@ -103,16 +103,19 @@ fi
 import json, os, sys
 SETTINGS = ".claude/settings.json"
 HOOKS = {
-    "PostToolUse": [{
-        "matcher": "Write|Edit",
-        "hooks": [
+    "PreToolUse": [
+        {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "bash _governance/hooks/guard-core.sh"}]},
+        {"matcher": "Bash", "hooks": [{"type": "command", "command": "bash _governance/hooks/guard-git.sh"}]}
+    ],
+    "PostToolUse": [
+        {"matcher": "Write|Edit", "hooks": [
             {"type": "command", "command": "bash _governance/hooks/checkpoint.sh"},
-            {"type": "command", "command": "bash _governance/hooks/auto-format.sh"}
-        ]
-    }],
-    "Stop": [{
-        "hooks": [{"type": "command", "command": "bash _governance/hooks/stop-check.sh"}]
-    }]
+            {"type": "command", "command": "bash _governance/hooks/auto-format.sh"},
+            {"type": "command", "command": "bash _governance/hooks/auto-build-runner.sh"}
+        ]},
+        {"hooks": [{"type": "command", "command": "bash _governance/hooks/telemetry.sh"}]}
+    ],
+    "Stop": [{"hooks": [{"type": "command", "command": "bash _governance/hooks/stop-check.sh"}]}]
 }
 if not os.path.exists(SETTINGS):
     sys.exit(0)
