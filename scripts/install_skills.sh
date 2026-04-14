@@ -153,7 +153,11 @@ HOOKS_TO_ADD = {
         }
     ],
     "Stop": [
-        {"hooks": [{"type": "command", "command": "bash _governance/hooks/stop-check.sh"}]}
+        {"hooks": [
+            {"type": "command", "command": "bash _governance/hooks/conductor-stop.sh"},
+            {"type": "command", "command": "bash _governance/hooks/memory.sh"},
+            {"type": "command", "command": "bash _governance/hooks/stop-check.sh"}
+        ]}
     ]
 }
 

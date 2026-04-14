@@ -123,7 +123,11 @@ HOOKS = {
         ]},
         {"hooks": [{"type": "command", "command": "bash _governance/hooks/telemetry.sh"}]}
     ],
-    "Stop": [{"hooks": [{"type": "command", "command": "bash _governance/hooks/stop-check.sh"}]}]
+    "Stop": [{"hooks": [
+        {"type": "command", "command": "bash _governance/hooks/conductor-stop.sh"},
+        {"type": "command", "command": "bash _governance/hooks/memory.sh"},
+        {"type": "command", "command": "bash _governance/hooks/stop-check.sh"}
+    ]}]
 }
 if not os.path.exists(SETTINGS):
     sys.exit(0)

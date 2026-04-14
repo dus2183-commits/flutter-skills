@@ -9,6 +9,11 @@
 3. **每步读 SKILL.md 模板**：生成代码前必须读对应 skill 的段 6 代码模板
 4. **每步产出文件**：spec → docs/specs/{m}.md, model → .model.dart, repo → _repository.dart
 
+## 项目记忆（跨 session 持久化）
+
+如果存在,**每次打开必读** `.claude/memory/project.md` — 记录了之前 session 做了什么。
+memory 由 memory hook 自动维护,不要手动改。
+
 ## AI 协作必读
 
 任何 AI 操作前,请先读以下 4 个文件:
