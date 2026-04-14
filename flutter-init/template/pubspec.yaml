@@ -57,6 +57,9 @@ dependencies:
   # 下拉刷新 + 上拉加载 (yc141 同款,锁版本兼容 web)
   easy_refresh: ^3.4.0
 
+  # 屏幕适配 — design-to-code 生成代码按 375×812 设计稿宽高,用 .w / .h / .sp 响应式
+  flutter_screenutil: ^5.9.3
+
   # 工具
   uuid: ^4.5.2
   intl: any

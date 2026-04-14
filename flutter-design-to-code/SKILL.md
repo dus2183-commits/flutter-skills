@@ -259,6 +259,45 @@ Container(width: 80, height: 80, color: Colors.grey[300])
 2. 把照片改成纯色/渐变色块(Photo → Container + LinearGradient)
 3. 把插画改成 Material Icons(Illustration → Icon widget)
 
+**硬性禁止的布局做法(违反 = 跟 Figma 对不齐):**
+1. ❌ 凭"视觉印象"猜 Positioned 的 top/left 数值
+2. ❌ 不读 Figma 节点的 boundingBox 就开写 Stack
+3. ❌ 忽略 Figma 的 rotation(旋转角度)/ effects(阴影/模糊)/ opacity
+4. ❌ 不管 z-order(图层叠加顺序),随便 Stack children 顺序
+
+**必须做的(每个位置敏感的节点):**
+1. 调 `figma:get_design_context` 或 `get_metadata` 拿到每个子节点的:
+   - `boundingBox: {x, y, width, height}` — 绝对坐标
+   - `rotation` — 旋转角度(弧度)
+   - `effects[]` — 阴影/模糊/渐变
+   - `opacity` — 透明度
+   - z-order — 图层顺序(子节点数组顺序 = 从底到顶)
+2. **把读到的数据先打印给用户看确认**,再写代码:
+   ```
+   节点 1:43 有 4 个 Diamond 子节点:
+   - [0] x=100 y=50 size=120x120 rotation=0.785rad shadow=(0,4,16,rgba(0,0,0,0.3))
+   - [1] x=220 y=150 size=100x100 rotation=0.785rad shadow=...
+   ...
+   ```
+3. 用 `Stack` + `Positioned` 按这些精确值还原,**不修改数字**:
+   ```dart
+   Positioned(
+     left: 100.w,           // ★ 响应式,用 flutter_screenutil .w
+     top: 50.h,             // ★ .h 对高度
+     child: Transform.rotate(
+       angle: 0.785,
+       child: Container(
+         width: 120.w,
+         height: 120.w,     // 正方形用 .w 不用 .h(避免纵横比失真)
+         decoration: BoxDecoration(
+           boxShadow: [BoxShadow(offset: Offset(0, 4), blurRadius: 16, color: Color(0x4D000000))],
+         ),
+         child: ...,
+       ),
+     ),
+   )
+   ```
+
 **照片 fallback 顺序(从好到差,每一级都要试):**
 1. Figma MCP 拿 imageRef + Figma API 下载 → 最佳
 2. 问用户有没有切图(manual_assets 或手动贴路径)→ 次佳
