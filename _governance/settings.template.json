@@ -117,8 +117,5 @@
     "PROJECT_LOG_LEVEL": "info"
   },
 
-  "model": {
-    "default": "sonnet",
-    "_comment": "skill 可在 frontmatter 覆盖。workflow/spec/plan/review 用 opus,生成类用 sonnet,format 类用 haiku。"
-  }
+  "model": "sonnet"
 }
