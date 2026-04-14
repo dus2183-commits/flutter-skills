@@ -64,22 +64,17 @@
     "PostToolUse": [
       {
         "matcher": "Write|Edit",
-        "command": "bash _governance/hooks/lint-on-write.sh \"$CLAUDE_TOOL_FILE_PATH\""
-      },
-      {
-        "matcher": "Skill",
-        "command": "bash _telemetry/log_skill_call.sh \"$CLAUDE_SKILL_NAME\" success"
+        "hooks": [
+          { "type": "command", "command": "bash _governance/hooks/checkpoint.sh" },
+          { "type": "command", "command": "bash _governance/hooks/auto-format.sh" }
+        ]
       }
     ],
     "Stop": [
       {
-        "command": "bash _governance/hooks/post-skill.sh"
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "command": "bash _governance/hooks/check-git-clean.sh"
+        "hooks": [
+          { "type": "command", "command": "bash _governance/hooks/stop-check.sh" }
+        ]
       }
     ]
   },

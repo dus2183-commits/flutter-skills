@@ -100,6 +100,21 @@ else
 fi
 
 # ═══════════════════════════════════════════════════
+# Step 4.5: 确保 hooks 可执行
+# ═══════════════════════════════════════════════════
+if [ -d "_governance/hooks" ]; then
+  chmod +x _governance/hooks/*.sh 2>/dev/null || true
+  echo -e "${GREEN}  ✓ hooks 脚本可执行${NC}"
+fi
+
+# 检查 settings.json 是否配了 hooks
+if [ -f ".claude/settings.json" ]; then
+  if ! grep -q "checkpoint.sh\|stop-check.sh" ".claude/settings.json"; then
+    echo -e "${YELLOW}  ⚠ .claude/settings.json 未配 hooks,建议手动合并 _governance/settings.template.json${NC}"
+  fi
+fi
+
+# ═══════════════════════════════════════════════════
 # Step 5: 全局 flutter-init
 # ═══════════════════════════════════════════════════
 echo -e "${BLUE}[5/5]${NC} 检查全局 flutter-init..."
