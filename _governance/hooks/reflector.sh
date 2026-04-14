@@ -62,9 +62,20 @@ if re.search(r"docs/specs/[^/]+\.md$", file_path):
 
     ex_section = re.search(r"## 6\.[^#]+", content)
     if ex_section:
-        bullets = re.findall(r"^[-*]\s+", ex_section.group(0), re.MULTILINE)
-        if len(bullets) < 3:
-            blocking.append(f"异常场景只有 {len(bullets)} 条,必须 ≥ 3 条")
+        body = ex_section.group(0)
+        # 支持 3 种格式: bullet(- xxx / * xxx) / table 行(| ... |) / 编号(1. xxx)
+        bullets = re.findall(r"^[-*]\s+", body, re.MULTILINE)
+        numbered = re.findall(r"^\d+\.\s+", body, re.MULTILINE)
+        # table 数据行: 以 | 开头,含多个 |,且不是表头分割线(---)
+        table_rows = [
+            line for line in body.split("\n")
+            if line.strip().startswith("|") and line.count("|") >= 2
+            and not re.match(r"^\s*\|[\s\-:]+\|", line)
+            and "场景" not in line and "处理" not in line  # 跳过表头
+        ]
+        count = len(bullets) + len(numbered) + len(table_rows)
+        if count < 3:
+            blocking.append(f"异常场景只有 {count} 条,必须 ≥ 3 条(支持 bullet/编号/table 三种格式)")
 
 # ─── api.md ─────────────────────────────────
 elif re.search(r"docs/api/[^/]+\.md$", file_path):
