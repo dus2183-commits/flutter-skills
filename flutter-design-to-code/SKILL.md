@@ -40,18 +40,39 @@ category: bridge
 
 **Step 1 — 识别输入类型**
 
-- URL → 类型判断 (Figma / Zeplin / 其他)
-- 图片 → 使用 vision 分析
+- Figma URL → `figma:figma-implement-design` MCP
+- 截图/Zeplin → Claude vision
+- 图片 URL → 先 curl 下载再 vision
 
-**Step 2 — 调用 MCP 提取设计信息**
+**Step 2 — Figma 必须调 MCP (不要自己瞎猜)**
 
-对于 Figma:
-- 调 `figma:figma-implement-design` MCP
-- 提取: 布局结构 / 颜色 / 字体 / 间距 / 组件
+**⛔ 禁止只看 URL 凭想象写代码。必须真正调用 MCP 工具:**
 
-对于 Zeplin (或截图):
-- 用 Claude vision 分析图片
-- 手工提取设计要素
+```
+1. 先调 figma:figma-use (必读前置,不要跳)
+2. 再调 use_figma 工具 (具体参数看 figma-use 说明)
+3. MCP 返回: 布局结构 / 颜色 / 字体 / 组件 / 图片资源 URL
+```
+
+**Step 2.5 — 自动下载切图 (Figma 才能做)**
+
+MCP 返回里有 `images[].url`（Figma 提供的临时 PNG/SVG URL）。**必须下载**:
+
+```bash
+mkdir -p assets/image/{module}
+
+# 每张图 curl 下载 (Figma URL 有时效性,必须立刻下)
+curl -L -o assets/image/{module}/{name}.png "{figma_image_url}"
+```
+
+然后在 `pubspec.yaml` 的 `assets:` 下加:
+```yaml
+- assets/image/{module}/
+```
+
+**如果 MCP 不给 URL**（有些 Figma 设置限制）:
+- 降级到"切图清单"方案,告诉用户手动导出
+- 在生成的 Widget 代码里用 placeholder `AssetImage('assets/image/placeholder.png')`
 
 **Step 3 — 设计信息标准化**
 
@@ -288,7 +309,8 @@ page_name: announcement_detail
 ## 7. 不做什么
 
 - ❌ 不自动修改 theme 文件 (只列出清单，用户确认后由 flutter-theme-design 处理)
-- ❌ 不自动切图 (需要用户手工从 Figma 导出，或用 Zeplin 自动化)
+- ✅ Figma 场景自动切图 (调 figma MCP 拿 URL + curl 下载)
+- ❌ Zeplin / 截图场景不自动切图 (用户手工导出)
 - ❌ 不生成完整页面代码 (只生成 UI 部分，Controller 由 flutter-page-gen 生成)
 - ❌ 不修改路由配置
 - ❌ 不自动 commit

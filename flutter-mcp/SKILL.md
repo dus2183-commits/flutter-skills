@@ -48,9 +48,17 @@ category: bridge
 
 ## 4. 工作流程
 
-**Step 1 — 读取设计稿信息 (MCP 调用)**
+**Step 1 — 调用 Figma MCP 真正读取（禁止瞎猜）**
 
-通过 MCP 工具提取:
+⛔ **绝对不要只看 Figma URL 就凭想象写代码。必须调 MCP**:
+
+```
+1. 先读 figma:figma-use skill (必读前置)
+2. 调 use_figma 工具,传入 Figma URL/nodeId
+3. MCP 返回完整设计数据
+```
+
+**MCP 返回内容应该包含:**
 
 | 类型 | 提取内容 |
 |------|---------|
@@ -58,8 +66,34 @@ category: bridge
 | 字体 | 字号、字重、行高、字间距 |
 | 间距 | padding、margin、gap、圆角数值 |
 | 组件 | 组件名称、层级结构、状态变体(默认/hover/disabled) |
-| 图标 | 名称,确认是否有对应项目资源 |
-| 图片 | 占位尺寸,确认资源来源(本地 assets / 远程 URL) |
+| 图标 | 名称 + 可下载的 SVG/PNG URL |
+| 图片 | 占位图的可下载 URL (Figma 临时 CDN) |
+
+**Step 1.5 — 自动下载图片资源**
+
+MCP 返回里的 `images[].url` 是 Figma 临时 CDN,**必须立刻下载**（URL 会过期）:
+
+```bash
+mkdir -p assets/image/{module}
+
+# 每张图下载
+curl -L -o assets/image/{module}/ic_{name}.png "{figma_image_url}"
+curl -L -o assets/image/{module}/bg_{name}.png "{figma_image_url_2}"
+# ...
+```
+
+更新 `pubspec.yaml`:
+```yaml
+flutter:
+  assets:
+    - assets/image/{module}/
+```
+
+**命名规则（按 conventions.md）:**
+- 图标: `ic_{module}_{name}.png`
+- 背景: `bg_{module}_{name}.png`
+- 头像: `avatar_{name}.png`
+- 按钮: `btn_{module}_{name}.png`
 
 **Step 2 — Token 映射**
 
