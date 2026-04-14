@@ -69,8 +69,10 @@ elif re.search(r"docs/plans/[^/]+\.md$", file_path):
     if "mock" not in content.lower():
         warnings.append("plan 缺少 mock 先行标记")
 
-# ─── *.model.dart ───────────────────────────
-elif file_path.endswith(".model.dart"):
+# ─── *.model.dart 或 含 @freezed 的文件 ──────
+elif file_path.endswith(".model.dart") or "@freezed" in content:
+    if not file_path.endswith(".model.dart"):
+        warnings.append(f"命名不规范: 含 @freezed 的 model 应该叫 *.model.dart (当前: {os.path.basename(file_path)})")
     if "@freezed" not in content:
         blocking.append("model 必须用 @freezed 注解")
     if "part " not in content:
