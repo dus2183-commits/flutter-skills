@@ -23,11 +23,11 @@ owner: @lead
 3. **每一步必须读对应的 SKILL.md。** 生成代码前，先读 `.claude/skills/flutter-{skill}/SKILL.md` 里的段 6 代码模板，按模板写，不要凭自己的知识。
 4. **每一步必须产出文件。** spec → `docs/specs/{m}.md`，plan → `docs/plans/{m}.md`，api-design → `docs/api/{m}.md`，model-gen → `.model.dart`，api-gen → `_repository.dart` + mock JSON，page-gen → 三件套。没有文件产出 = 没做。
 5. **禁止把有依赖的 skill 合并成一步。** 不能"同时生成 model + repository"（repo 依赖 model），但可以"同时生成 page + widget"（无依赖）。
-6. **Figma URL 出现时必须走本工作流,禁用一键生成 skill。** 用户贴 `figma.com/design/...` 或 `figma.com/file/...` 时:
-   - ❌ **禁止**调用 `figma:figma-implement-design` / `figma-implement-design`
-   - ✅ Figma URL 只作为"节点参考数据源":允许 `figma:get_code`、`figma:get_screenshot`、`figma:get_variable_defs` 读节点属性
-   - ✅ 切图必须在 page-gen 阶段用 curl 下载到 `assets/image/3.0x/{module}/`
-   - ❌ 代码中出现 `figma.com/api/mcp/asset/...` 硬编码字符串 = reflector blocking(7 天后集体 404)
+6. **Figma URL 出现时推荐走 `figma-implement-design → flutter-post-figma` 双阶段链,不走本 skill。** 用户贴 `figma.com/design/...` 或 `figma.com/file/...` 时:
+   - 阶段 1: `figma:figma-implement-design`(MCP 原生)生成初版 UI 代码
+   - 阶段 2: `flutter-post-figma` 补全结构(下载 CDN 图、拆三件套、登记路由、反推 spec/plan、归档 manifest、测试 + review)
+   - 只在**纯文字需求(无 Figma)**时走本 flow-feature 的 9 步
+   - 代码最终产物**不得含** `figma.com/api/mcp/asset/...` 硬编码(reflector 会 blocking)
 
 ## 🤖 子 Agent 启动模板（必须用这个）
 

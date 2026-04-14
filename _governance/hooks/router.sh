@@ -52,6 +52,9 @@ RULES = [
     (["发版", "build release", "打 release", "打包"], "flutter-flow-release / flutter-release"),
     (["改技术栈", "新决策", "更新规范", "加一条 adr", "新 adr"], "flutter-flow-govern / flutter-context-update"),
 
+    # Figma 后处理(MCP 产出后补全成规范结构)
+    (["figma.*生成.*代码.*补全", "figma.*后处理", "figma.*整理",
+      "figma.*做好了.*规范", "补全 figma"], "flutter-post-figma"),
     # Manifest 批量 + 回退(优先级高于具体 skill)
     (["生成.*清单.*模板", "新建 manifest", "批量.*清单", "准备批量", "生成 manifest",
       "批量.*模块", "批量.*生成", "批量做", "批量开发"], "flutter-manifest-init"),
@@ -128,23 +131,29 @@ if has_figma_url and has_feature_intent:
     # stdout 注入 — UserPromptSubmit hook 的 stdout 会追加到 prompt context
     print("")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    print("⛔ [Router 强制指令] 检测到 Figma URL + 功能开发意图")
+    print("🔗 [Router 调用链] 检测到 Figma URL + 功能开发意图")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("")
-    print("你必须使用 flutter-flow-feature 工作流,走完整 9 步流水线:")
-    print("  spec → plan → (api-design/model/repo 按需) → page-gen →")
-    print("  polishing → test-gen → review")
+    print("推荐双阶段执行(MCP-first + 后处理):")
     print("")
-    print("禁止行为:")
-    print("  ❌ 不许调用 figma:figma-implement-design")
-    print("  ❌ 不许调用 figma-implement-design")
-    print("  ❌ 不许跳过 spec/plan 直接写代码")
-    print("  ❌ 不许用 figma.com/api/mcp/asset/... URL 当生产代码(7 天过期)")
+    print("  阶段 1: 调用 figma:figma-implement-design(MCP 原生 skill)")
+    print("          → 让 MCP 读 Figma 节点,生成初版 Dart 代码")
+    print("          → 允许它产出 Image.network(CDN URL) / 扁平结构")
     print("")
-    print("允许行为:")
-    print("  ✅ 调用 figma MCP 的 get_screenshot / 读节点属性(只是数据来源)")
-    print("  ✅ 用 curl 把切图下载到 assets/image/3.0x/{module}/")
-    print("  ✅ 每步完成汇报 '✅ Step N: 产出' 再进下一步")
+    print("  阶段 2: 调用 flutter-post-figma(我们的后处理 skill)")
+    print("          → 扫描 MCP 产出的 CDN URL,给用户 curl 清单下载到本地")
+    print("          → 改 Image.network → Image.asset")
+    print("          → 拆三件套结构 Page/Controller/Binding")
+    print("          → 登记路由 + 更新 pubspec")
+    print("          → 反推 spec.md/plan.md,归档 manifest-v{N}.yaml")
+    print("          → 生成测试 + review")
+    print("")
+    print("关键规则:")
+    print("  ✅ MCP 擅长 Figma → UI 代码,让它做")
+    print("  ✅ 后处理 skill 擅长结构/测试/归档,让它做")
+    print("  ✅ 每阶段完成汇报 '✅ 阶段 N: 产出' 再进下一步")
+    print("  ❌ 不要跳过阶段 2(没有后处理 = UI 能跑但不规范)")
+    print("  ❌ 不要用 Read 工具读 >1MB 图片(API 400 卡死,用 ls -lh 代替)")
     print("")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     print("")

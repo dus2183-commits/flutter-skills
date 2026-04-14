@@ -51,27 +51,37 @@ curl 下载 PNG/JPG 等二进制图片后,**禁止用 Read 工具读取该文件
 - SVG (XML 文本) 可以 Read
 - 阈值:>1MB 的图必卡,建议所有图都不 Read
 
-## ⛔ Figma URL 处理铁律(违反=重做)
+## 🔗 Figma URL 处理(双阶段协作)
 
 **当用户消息包含 `figma.com/design/...` 或 `figma.com/file/...` 链接时:**
 
-### 必须做
-1. 判断用户意图:
-   - "做 X 模块/页面/功能" → 用 **flutter-flow-feature**(走完整 9 步)
-   - "重画 X 页/改版 UI" → 用 **flutter-flow-design**(UI-only 流程)
-2. Figma URL 仅作为"节点参考数据源":
-   - 允许调 `figma:get_code`、`figma:get_screenshot`、`figma:get_variable_defs` 读取节点
-   - 允许用 curl 把切图真正下载到 `assets/image/3.0x/{module}/`
-3. 代码生成必须走我们的工作流,每步产出文件
+### 推荐流程(MCP-first + 后处理)
 
-### 禁止做
-- ❌ 直接调用 `figma:figma-implement-design` / `figma-implement-design` skill(一键生成会跳过 spec/plan/test/review)
-- ❌ 在 Dart 代码里硬编码 `https://www.figma.com/api/mcp/asset/...` URL(7 天过期)
-- ❌ 跳过 spec 直接写 page/controller
+**阶段 1:调用 `figma:figma-implement-design`(MCP 原生)**
+- 让 MCP 读 Figma 节点,生成初版 Dart 代码
+- 允许它产出 `Image.network(CDN URL)` / 扁平结构(后处理会修)
+- 它擅长 UI 还原,让它发挥
+
+**阶段 2:调用 `flutter-post-figma`(后处理)**
+- 扫描 CDN URL,给用户 curl 清单(用户终端粘贴运行)
+- 改 `Image.network` → `Image.asset('assets/image/3.0x/{m}/xxx.png')`
+- 拆三件套结构(Page/Controller/Binding)
+- 登记路由 + 更新 pubspec.yaml
+- 反推 spec.md / plan.md,归档 `manifest-v{N}.yaml`
+- 生成测试 + review
+
+### 关键规则
+
+- ✅ 两阶段都跑完才算完成,不许只跑阶段 1
+- ✅ 代码最终产物**不能含** `figma.com/api/mcp/asset` 硬编码(7 天过期)
+- ❌ 禁止 Read 大于 1MB 的 PNG/JPG(API 400 卡死,用 `ls -lh` / `file` 代替)
+- ❌ 禁止把设计里的"真实照片"改成"渐变色块"或"Material Icons"
+- ✅ 允许占位(灰块 + 红边 + TODO 标记),**前提是保留原设计结构**
 
 ### 判断依据
-- 代码里出现 `figma.com/api/mcp/asset` 字符串 = 违规 → reflector 会 blocking
-- 生成代码时没产出 `docs/specs/{m}.md` = 跳过 spec → conductor 会 blocking
+
+- 代码里还有 `figma.com/api/mcp/asset` 字符串 = 阶段 2 没跑完 → reflector 拦截
+- 没有 `docs/specs/{m}.md` = 阶段 2 没反推 spec → conductor 拦截
 
 ### Model: 必须 freezed
 - `@freezed` + `part .freezed.dart` + `part .g.dart` + `factory fromJson`

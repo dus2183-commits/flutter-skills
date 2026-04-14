@@ -254,7 +254,7 @@ title "Test 12 — Figma URL 注入强制指令"
 
 OUT=$(echo '{"prompt":"做一个 splash 启动页 https://www.figma.com/design/abc?node-id=1-43 纯UI"}' | \
       bash _governance/hooks/router.sh 2>/dev/null)
-if echo "$OUT" | grep -q "不许.*figma-implement-design\|禁止.*figma-implement-design"; then
+if echo "$OUT" | grep -q "figma-implement-design.*flutter-post-figma\|Router 调用链\|阶段 2.*flutter-post-figma"; then
   pass "Figma URL + 功能意图 → 注入禁令"
 else
   fail "未注入禁令 (stdout: $OUT)"
@@ -323,10 +323,10 @@ rm -rf "$TMP_DIR"
 # ════════════════════════════════════════════════════════════════════
 title "Test 15 — CLAUDE.md 模板有 Figma 铁律"
 
-if grep -q "Figma URL 处理铁律" flutter-init/template/CLAUDE.md; then
-  pass "CLAUDE.md 有 Figma URL 铁律段"
+if grep -q "Figma URL 处理\|flutter-post-figma" flutter-init/template/CLAUDE.md; then
+  pass "CLAUDE.md 有 Figma URL 处理段(双阶段协作)"
 else
-  fail "CLAUDE.md 缺 Figma URL 铁律"
+  fail "CLAUDE.md 缺 Figma URL 处理段"
 fi
 
 # ════════════════════════════════════════════════════════════════════
