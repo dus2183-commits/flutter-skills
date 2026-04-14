@@ -153,13 +153,52 @@ flutter:
 
 **curl 失败时的 3 级降级(禁止降级到"用文字"):**
 
-**Level 1 — curl 权限被拒:**
-检查 `.claude/settings.json`,`Bash(curl:*)` 是否在 deny 里。告诉用户:
+**Level 1 — curl 权限被拒 或 自动下载任何原因失败:**
+
+不要 fallback 到文字。直接产出 **可复制粘贴的 curl 清单** + 目标路径 + 重命名后的文件名,让用户一键跑:
+
+````markdown
+# {module} 模块切图 — 手动下载清单
+
+由于 curl 权限被拒(或自动下载失败),请在终端复制粘贴以下命令:
+
+```bash
+cd /Users/tg/Desktop/d/{project_name}
+
+# 创建目标目录
+mkdir -p assets/image/3.0x/{module}
+
+# 下载并改名(文件名已按规范命名,直接跑)
+curl -L -o "assets/image/3.0x/{module}/logo_app.png" \
+  "https://www.figma.com/api/mcp/asset/92a13c99-eead-4215-9f2b-738647369674"
+curl -L -o "assets/image/3.0x/{module}/img_splash_diamond_1.png" \
+  "https://www.figma.com/api/mcp/asset/xxxx-yyyy-zzzz-1"
+curl -L -o "assets/image/3.0x/{module}/img_splash_diamond_2.png" \
+  "https://www.figma.com/api/mcp/asset/xxxx-yyyy-zzzz-2"
+# ... 更多切图
 ```
-curl 被拒,请编辑 .claude/settings.json 把 "Bash(curl:*)" 从 deny 移到 allow,
-然后说"重试下载",我继续。
+
+或者改 `.claude/settings.json`:
+1. 打开 `.claude/settings.json`
+2. `Bash(curl:*)` 从 `deny` 移到 `allow`
+3. 回来说 "curl 权限已开,重试下载"
+
+验证(运行完检查):
+```bash
+ls -lh assets/image/3.0x/{module}/
+# 应看到所有文件,大小 > 0
 ```
+
+下载完告诉我 "切图下载完成",我继续改代码。
+````
+
+⛔ **硬性要求:**
+- curl 命令的 `-o` 后的路径必须是 **完整目标路径** + **重命名后的文件名**(不能让用户再改)
+- 文件名遵循段 "文件命名规则"(ic_/bg_/btn_/img_/avatar_/logo_)
+- 命令可直接从终端复制粘贴运行,0 修改
+
 ❌ 不要自己 fallback 到"用文字 logo",这是糟糕 UX。
+❌ 不要让用户自己想文件名 — 你必须把对应关系算好给他。
 
 **Level 2 — MCP 不给 URL(Figma 权限限制):**
 生成 `docs/manual-download-{module}.md`,列出所有切图:
