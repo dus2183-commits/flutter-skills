@@ -69,24 +69,51 @@ category: bridge
 | 图标 | 名称 + 可下载的 SVG/PNG URL |
 | 图片 | 占位图的可下载 URL (Figma 临时 CDN) |
 
-**Step 1.5 — 自动下载图片资源**
+**Step 1.5 — 自动下载图片资源（默认 3x 高清）**
 
-MCP 返回里的 `images[].url` 是 Figma 临时 CDN,**必须立刻下载**（URL 会过期）:
+MCP 返回的 `images[].url` 是 Figma 临时 CDN,**必须立刻下载**（URL 会过期）。
 
-```bash
-mkdir -p assets/image/{module}
+**倍图策略：**
 
-# 每张图下载
-curl -L -o assets/image/{module}/ic_{name}.png "{figma_image_url}"
-curl -L -o assets/image/{module}/bg_{name}.png "{figma_image_url_2}"
-# ...
+| 场景 | 倍数 | 说明 |
+|------|------|------|
+| **默认（推荐）** | **3x** | 覆盖所有 iOS/高密度 Android,1x/2x 设备自动缩放 |
+| 只做 Web | 2x | 省空间,Retina 够用 |
+| 只做低端 Android | 2x | 同上 |
+| 完整倍图 | 1x + 2x + 3x | 每张图导 3 份,放 `assets/image/{1.0x,2.0x,3.0x}/` |
+
+**调 Figma MCP 时传参要指定 scale：**
+```
+use_figma(nodeId=xxx, format='png', scale=3)  # 默认 3x
 ```
 
-更新 `pubspec.yaml`:
+**下载时保存到 3x 目录：**
+```bash
+mkdir -p assets/image/3.0x/{module}
+
+# 每张图下载 3x 版本
+curl -L -o "assets/image/3.0x/{module}/ic_{name}.png" "{figma_image_url_3x}"
+```
+
+**开始时必须 ASK_USER 确认倍数**（除非用户已说明）：
+```
+问: "图片导几倍图? (1) 3x 推荐,一套覆盖所有设备 (2) 2x 省空间 (3) 完整 1x+2x+3x"
+```
+
+更新 `pubspec.yaml`（Flutter 自动识别 `{N.0x}/` 目录）:
 ```yaml
 flutter:
   assets:
-    - assets/image/{module}/
+    - assets/image/3.0x/{module}/   # 3x 目录
+    # 如果有完整倍图还要加:
+    # - assets/image/{module}/      # 1x
+    # - assets/image/2.0x/{module}/ # 2x
+```
+
+**代码中引用（Flutter 自动选倍数）:**
+```dart
+Image.asset('assets/image/{module}/ic_home.png')
+// Flutter 看设备 devicePixelRatio 自动选 3.0x/2.0x/1x
 ```
 
 **命名规则（按 conventions.md）:**
@@ -94,6 +121,7 @@ flutter:
 - 背景: `bg_{module}_{name}.png`
 - 头像: `avatar_{name}.png`
 - 按钮: `btn_{module}_{name}.png`
+- 插图: `img_{module}_{name}.png`
 
 **Step 2 — Token 映射**
 

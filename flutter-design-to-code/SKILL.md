@@ -54,25 +54,42 @@ category: bridge
 3. MCP 返回: 布局结构 / 颜色 / 字体 / 组件 / 图片资源 URL
 ```
 
-**Step 2.5 — 自动下载切图 (Figma 才能做)**
+**Step 2.5 — 自动下载切图 (Figma 才能做) ★ 默认 3x**
 
-MCP 返回里有 `images[].url`（Figma 提供的临时 PNG/SVG URL）。**必须下载**:
+MCP 返回里有 `images[].url`（Figma 提供的临时 PNG/SVG URL）。**必须下载**。
+
+**调 MCP 前必须 ASK_USER 确认倍数**:
+```
+问: "图片导几倍? (1) 3x (默认,推荐) (2) 2x (3) 1x+2x+3x 完整倍图"
+```
+
+**默认 3x 策略:**
+- 调 `use_figma(scale=3)` 拿到 3x URL
+- 保存到 `assets/image/3.0x/{module}/`
+- Flutter 自动按设备 devicePixelRatio 降级,1x/2x 设备也能用
 
 ```bash
-mkdir -p assets/image/{module}
-
-# 每张图 curl 下载 (Figma URL 有时效性,必须立刻下)
-curl -L -o assets/image/{module}/{name}.png "{figma_image_url}"
+# 3x 默认
+mkdir -p assets/image/3.0x/{module}
+curl -L -o "assets/image/3.0x/{module}/ic_{name}.png" "{figma_url_3x}"
 ```
 
-然后在 `pubspec.yaml` 的 `assets:` 下加:
+**完整倍图（用户选 1+2+3）:**
+```bash
+mkdir -p assets/image/{module} assets/image/2.0x/{module} assets/image/3.0x/{module}
+curl -L -o "assets/image/{module}/ic_{name}.png" "{url_1x}"
+curl -L -o "assets/image/2.0x/{module}/ic_{name}.png" "{url_2x}"
+curl -L -o "assets/image/3.0x/{module}/ic_{name}.png" "{url_3x}"
+```
+
+更新 `pubspec.yaml`（Flutter 认 N.0x 目录）:
 ```yaml
-- assets/image/{module}/
+flutter:
+  assets:
+    - assets/image/3.0x/{module}/
 ```
 
-**如果 MCP 不给 URL**（有些 Figma 设置限制）:
-- 降级到"切图清单"方案,告诉用户手动导出
-- 在生成的 Widget 代码里用 placeholder `AssetImage('assets/image/placeholder.png')`
+**如果 MCP 不给 URL**（Figma 权限限制）→ 降级切图清单方案
 
 **Step 3 — 设计信息标准化**
 
