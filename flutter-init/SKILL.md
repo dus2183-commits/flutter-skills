@@ -280,6 +280,16 @@ bash <(curl -s https://raw.githubusercontent.com/dus2183-commits/flutter-skills/
 - `.env.prod` 保持空模板 (DEBUG_ENCRYPT=false)
 - 给用户警告: ".env.dev 包含示例 key,请改为真实值后才能跑通真实接口。**生产环境 DEBUG_ENCRYPT 必须为 false**"
 
+### Step 9.5 — 响应式适配已内置 (无需额外动作)
+
+template 里已经配好 `flutter_screenutil: ^5.9.3`:
+- `pubspec.yaml` 已加依赖
+- `lib/main.dart` 已用 `ScreenUtilInit(designSize: Size(375, 812))` 包裹
+- 设计稿基准:iPhone X 标准 375×812
+- design-to-code 生成的代码会统一用 `.w`/`.h`/`.sp`/`.r` 后缀
+
+**无需额外安装或配置。** 如果用户问"屏幕适配用什么",答 flutter_screenutil,已内置。
+
 ### Step 10 — 跑 setup.sh (一键搞定 fvm + Flutter + pub get) ★ 关键
 **不要直接跑 `flutter pub get`,要走 setup.sh 锁定 Flutter 3.27.2:**
 
