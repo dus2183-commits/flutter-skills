@@ -205,7 +205,124 @@ pubspec.yaml                  ← assets 段更新
 lib/app/routes/app_pages.dart ← 路由登记
 ```
 
-## 7. 常见错误
+## 7. 写代码前必读 — Flutter 常见坑预防清单
+
+**每次生成 UI 代码前,先过一遍这个清单。违反会编译通过但运行时崩。**
+
+### 🪤 坑 1: Matrix4 API 陷阱
+
+```dart
+// ❌ 崩:Matrix4.scale(x, y, z) 3 参数版 UnimplementedError
+Transform(transform: Matrix4.scale(1, -1, 1))
+
+// ✅ 用组合替代
+Transform.flip(flipY: true, child: ...)      // 垂直翻转
+Transform.rotate(angle: pi/2, child: ...)    // 旋转
+Transform.scale(scaleX: 1.5, child: ...)     // 单轴缩放
+Matrix4.diagonal3Values(1, -1, 1)            // 如一定要 Matrix4
+```
+
+### 🪤 坑 2: 资源扩展名必须匹配实际格式
+
+curl 下来的文件**必须验证格式**,扩展名错了 Flutter 加载会崩:
+
+```bash
+# 每次 curl 后必跑
+file assets/image/3.0x/{m}/*
+
+# 看输出是否匹配扩展名:
+# ✅ "PNG image data" + 扩展名 .png → 对
+# ✅ "SVG Scalable Vector Graphics" + .svg → 对
+# ❌ "SVG Scalable..." + .png → 用 mv 改扩展名
+# ❌ "HTML document" → URL 失效,重下
+```
+
+### 🪤 坑 3: Figma 导出的 SVG 带 CSS 变量
+
+flutter_svg 不支持 `var()` CSS 变量,会静默不渲染:
+
+```xml
+<!-- ❌ flutter_svg 不认 -->
+<path fill="var(--fill-0, white)" />
+
+<!-- ✅ 替换为字面量 -->
+<path fill="#FFFFFF" />
+```
+
+**SVG 下载后必扫一眼**:
+```bash
+grep -l "var(" assets/image/3.0x/{m}/*.svg && \
+  echo "⚠️ 有 CSS 变量,需要替换为字面量颜色"
+```
+
+### 🪤 坑 4: Transform 不影响 layout
+
+`Transform.rotate` / `Transform.scale` **只影响绘制,不影响布局尺寸**:
+
+```dart
+// ❌ 旋转后元素仍占原始位置,布局会错乱
+Positioned(
+  child: Transform.rotate(angle: pi/2, child: Image.asset(...)),
+)
+
+// ✅ 用 Positioned.fill / OverflowBox 让元素占满或溢出
+Positioned.fill(child: Image.asset(..., fit: BoxFit.cover))
+OverflowBox(
+  maxWidth: double.infinity,
+  child: Transform.rotate(angle: pi/2, child: ...),
+)
+```
+
+### 🪤 坑 5: SvgPicture vs Image
+
+```dart
+// SVG 用 SvgPicture.asset(需 import 'package:flutter_svg/flutter_svg.dart')
+// PNG/JPG 用 Image.asset
+// 扩展名决定用哪个,不要混用
+```
+
+### 🪤 坑 6: withOpacity 已废弃
+
+Flutter 3.27+ 用 withValues:
+```dart
+Colors.white.withOpacity(0.5)          // ❌ deprecated
+Colors.white.withValues(alpha: 0.5)    // ✅
+```
+
+### 🪤 坑 7: ListView 长列表必须 .builder
+
+```dart
+ListView(children: [...])           // ❌ 长列表性能差
+ListView.builder(itemBuilder: ...)  // ✅
+```
+
+### 🪤 坑 8: 不要硬编码像素
+
+用了 `flutter_screenutil` 就用响应式后缀:
+```dart
+SizedBox(width: 120)        // ❌ 不适配不同屏
+SizedBox(width: 120.w)      // ✅ .w = 按宽度适配
+TextStyle(fontSize: 16.sp)  // ✅ .sp = 按字号适配
+```
+
+### 🪤 坑 9: 不要 Read 图片文件
+
+`Read` 工具对 >1MB 图会 API 400。验证用:
+```bash
+ls -lh <path>    # 大小
+file <path>      # 格式
+```
+
+### 🪤 坑 10: dart:math pi 在 Transform 里
+
+如果删除了 Transform.rotate,记得检查还用不用 `pi`:
+```bash
+grep -c "\\bpi\\b" {file}   # 0 次就删 import 'dart:math'
+```
+
+---
+
+## 8. 常见错误
 
 ### ❌ 自己跑 curl
 给清单让用户跑,避开权限/卡顿问题。

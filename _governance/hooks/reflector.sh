@@ -48,6 +48,25 @@ warnings = []  # 警告
 if file_path.endswith(".dart") and re.search(r"figma\.com/api/mcp/asset", content):
     blocking.append("禁止在 Dart 代码里写 figma.com/api/mcp/asset URL (7 天过期),必须 curl 下载到 assets/image/3.0x/{module}/ 后改 Image.asset")
 
+# ─── 全局:.dart 文件常见坑预防(post-figma checklist 自动化) ──
+if file_path.endswith(".dart"):
+    # 坑 1: Matrix4.scale(x, y, z) 3 参数未实现
+    if re.search(r"Matrix4\.scale\s*\([^)]*,[^)]*,[^)]*\)", content):
+        blocking.append("Matrix4.scale(x,y,z) 3 参数版 vector_math 未实现,用 Transform.flip / Transform.rotate / Matrix4.diagonal3Values 替代")
+    # 坑 6: withOpacity deprecated (Flutter 3.27+)
+    if ".withOpacity(" in content:
+        blocking.append("withOpacity deprecated (Flutter 3.27+),必须用 withValues(alpha: x)")
+    # 坑 5: Image.asset 加载 .svg(扩展名错配)
+    if re.search(r"Image\.asset\s*\(\s*['\"][^'\"]+\.svg['\"]", content):
+        blocking.append("Image.asset 不支持 .svg,改用 SvgPicture.asset(import package:flutter_svg/flutter_svg.dart)")
+    # 坑 5 反向: SvgPicture.asset 加载 .png(扩展名错配)
+    if re.search(r"SvgPicture\.asset\s*\(\s*['\"][^'\"]+\.(png|jpg|jpeg|webp|gif)['\"]", content):
+        blocking.append("SvgPicture.asset 不支持 .png/.jpg,改用 Image.asset")
+
+# ─── 全局:.svg 文件不许含 CSS var() ──
+if file_path.endswith(".svg") and re.search(r"\bvar\s*\(\s*--", content):
+    blocking.append("SVG 含 CSS var() 变量,flutter_svg 不支持,必须替换为字面量颜色(如 fill=\"#FFFFFF\")")
+
 # ─── 全局:spec.md 不许写"CDN 过期"后门话术 ──
 if file_path.endswith(".md") and "docs/specs/" in file_path:
     if re.search(r"(CDN.*过期|7 天.*替换|MCP.*URL.*有效期|之后替换为本地)", content):
