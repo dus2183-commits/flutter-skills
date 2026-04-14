@@ -37,11 +37,17 @@ states:
   - IDENTIFY_INPUT          识别输入类型 (A/B/C)
   - CONFIRM_TARGET          确认目标 (页面?组件?路径?)
   - EXTRACT_DESIGN          提取设计信息 (图层/颜色/字体/资源)
+  - SPEC_GEN                ★ 新增: 生成简化 spec (页面/交互/接口需求)
+  - API_DESIGN              ★ 新增(条件): 如页面有接口需求(登录/注册等),走 api-design
+  - MODEL_GEN               ★ 新增(条件): 如有 API 则生成 model
+  - API_GEN                 ★ 新增(条件): 如有 API 则生成 repository
   - MAP_THEME               对照已有 theme,标记新增
-  - LIST_ASSETS             列出待切图清单
-  - GEN_CODE                调用 design-to-code skill
+  - LIST_ASSETS             列出待切图清单 + 自动下载
+  - GEN_CODE                调用 design-to-code skill (生成 UI)
+  - I18N_GEN                提取硬编码中文
   - PAGE_GEN                调用 page-gen 完善三件套
-  - REVIEW                  调用 review
+  - TEST_GEN                ★ 新增: 生成测试
+  - REVIEW                  调用 review + perf-audit
   - DONE
   - ABORT
   - PAUSED
@@ -50,6 +56,28 @@ initial: IDLE
 final: [DONE, ABORT]
 ```
 
+## 4.1 完整/简化 分支说明
+
+**完整版**（页面含接口,如登录/注册/列表详情）:
+```
+设计稿 → IDENTIFY → EXTRACT → CONFIRM
+      → SPEC_GEN → API_DESIGN → MODEL_GEN → API_GEN
+      → MAP_THEME → LIST_ASSETS(下载切图) → GEN_CODE
+      → I18N → PAGE_GEN → TEST_GEN → REVIEW → DONE
+```
+
+**简化版**（纯 UI 页面,如关于页/设置页）:
+```
+设计稿 → IDENTIFY → EXTRACT → CONFIRM
+      → SPEC_GEN (标注"无 API")
+      → MAP_THEME → LIST_ASSETS → GEN_CODE
+      → I18N → PAGE_GEN → REVIEW → DONE
+      (跳过 API_DESIGN/MODEL_GEN/API_GEN/TEST_GEN)
+```
+
+**SPEC_GEN 后 ASK_USER 判断:**
+> "这个页面需要后端接口吗? (1) 是,走完整流程 (2) 否,跳过 API 相关步骤"
+
 ## 5. Transition 规则
 
 | 当前 | 事件 | 下个 | 条件 |
@@ -57,15 +85,21 @@ final: [DONE, ABORT]
 | IDLE | user_prompt | IDENTIFY_INPUT | - |
 | IDENTIFY_INPUT | figma_url_detected | EXTRACT_DESIGN | URL 是 figma.com |
 | IDENTIFY_INPUT | image_uploaded | EXTRACT_DESIGN | 用 vision |
-| IDENTIFY_INPUT | unknown_input | ASK_USER | 不是 URL 也不是图 |
 | EXTRACT_DESIGN | design_extracted | CONFIRM_TARGET | - |
-| CONFIRM_TARGET | target_confirmed | MAP_THEME | 用户确认目标路径 |
+| CONFIRM_TARGET | target_confirmed | SPEC_GEN | ★ 生成 spec |
+| SPEC_GEN | spec_written_with_api | API_DESIGN | ★ 页面含接口需求 |
+| SPEC_GEN | spec_written_ui_only | MAP_THEME | ★ 纯 UI,跳过 API 步骤 |
+| API_DESIGN | api_written | MODEL_GEN | ★ docs/api/{m}.md 存在 |
+| MODEL_GEN | models_written | API_GEN | ★ .model.dart 存在 |
+| API_GEN | repos_written | MAP_THEME | ★ repository 存在 |
 | MAP_THEME | theme_checked | LIST_ASSETS | 标记新增颜色/字号 |
-| LIST_ASSETS | assets_listed | GEN_CODE | - |
-| GEN_CODE | code_written | I18N_GEN | 代码文件存在 |
+| LIST_ASSETS | assets_downloaded | GEN_CODE | 3x 切图下载完成 |
+| GEN_CODE | code_written | I18N_GEN | UI 代码文件存在 |
 | I18N_GEN | i18n_done | PAGE_GEN | 硬编码中文已提取 |
-| GEN_CODE | retry | EXTRACT_DESIGN | 提取信息不足 |
-| PAGE_GEN | three_files_done | REVIEW | page+controller+binding 全有 |
+| PAGE_GEN | three_files_done | TEST_GEN_OR_REVIEW | 三件套全 |
+| TEST_GEN_OR_REVIEW | has_api | TEST_GEN | ★ 有接口需要测试 |
+| TEST_GEN_OR_REVIEW | ui_only | REVIEW | ★ 纯 UI 跳过测试 |
+| TEST_GEN | tests_written | REVIEW | - |
 | REVIEW | review_pass | DONE | 0 个 ❌ |
 | REVIEW | review_fail | GEN_CODE | retry < 1 |
 | 任何 | user_abort | ABORT | - |
@@ -77,12 +111,17 @@ final: [DONE, ABORT]
 | EXTRACT_DESIGN (Figma) | sequential | `figma:figma-use` → `figma:figma-implement-design` |
 | EXTRACT_DESIGN (截图) | inline | Claude vision (内置) |
 | CONFIRM_TARGET | inline | AskUserQuestion |
+| **SPEC_GEN** | sequential | `flutter-spec` (★ 新增,简化版: 只描述页面/交互/可能的 API 需求) |
+| **API_DESIGN** | sequential | `flutter-api-design` (★ 条件,仅有接口需求时) |
+| **MODEL_GEN** | sequential | `flutter-model-gen` (★ 条件) |
+| **API_GEN** | sequential | `flutter-api-gen` (★ 条件) |
 | MAP_THEME | inline | (读 lib/app/theme/) |
-| LIST_ASSETS | inline | (写 assets-needed.md) |
+| LIST_ASSETS | sequential | `flutter-design-to-code` 的 Step 2.5 (下载 3x 切图 + 按规范命名) |
 | GEN_CODE | sequential | `flutter-design-to-code` |
-| I18N_GEN | sequential | `flutter-i18n-gen` (提取设计稿生成代码中的硬编码中文) |
-| PAGE_GEN | sequential | `flutter-page-gen` (补充三件套) |
-| REVIEW | sequential | `flutter-review` |
+| I18N_GEN | sequential | `flutter-i18n-gen` |
+| PAGE_GEN | sequential | `flutter-page-gen` (包装三件套) |
+| **TEST_GEN** | sequential | `flutter-test-gen` (★ 条件) |
+| REVIEW | **parallel** | `flutter-review` + `flutter-perf-audit` |
 
 ## 7. Reflector 配置
 
