@@ -1,6 +1,6 @@
 ---
 name: flutter-design-to-code
-description: Figma/Zeplin 设计稿 → Flutter 代码。通过 MCP 调用设计工具 API 提取样式,生成代码。用户说"根据 Figma 生成页面"、"把这个设计稿变成代码"、"从 Zeplin 切图"时触发。
+description: Figma/Zeplin/截图 → Flutter 代码（含自动切图下载、Token 映射、布局转换）。用户说"根据 Figma 生成页面"、"把这个设计稿变成代码"、"按设计稿生成代码"、"读取 Figma 设计"、"从 Zeplin 切图"、"把这个截图转成 Flutter"时触发。调 figma:figma-implement-design MCP 读设计,自动下载 3x 切图到 assets/image/,生成 Widget + Token 映射。
 type: skill
 stage: 4
 model: opus
@@ -53,6 +53,37 @@ category: bridge
 2. 再调 use_figma 工具 (具体参数看 figma-use 说明)
 3. MCP 返回: 布局结构 / 颜色 / 字体 / 组件 / 图片资源 URL
 ```
+
+**Step 2.2 — 布局转换对照表**
+
+| 设计稿概念 | Flutter 对应 |
+|-----------|-------------|
+| Auto Layout(横向) | `Row` |
+| Auto Layout(纵向) | `Column` |
+| 绝对定位层叠 | `Stack` + `Positioned` |
+| 固定宽高 | `SizedBox(width: x, height: y)` |
+| 内边距 | `Padding` 或 `Container(padding:)` |
+| 圆角 | `BorderRadius.circular(n)` |
+| 阴影 | `BoxShadow` |
+| 分割线 | `Divider` 或 `Container(height: 1, color: AppColors.divider)` |
+| 裁剪圆角图片 | `ClipRRect` + `BorderRadius` |
+| 文本段落 | `Text` + `TextStyle` (引用 AppTextStyles) |
+
+**像素说明:** Figma @ 1x 的像素值直接对应 Flutter 逻辑像素,无需换算。
+
+**Step 2.3 — Token 映射规则**
+
+将设计稿 Token 映射到项目 theme 文件,**颜色/字体/间距不允许在 Widget 中硬编码**:
+
+| 类别 | 检查 | 缺失时 |
+|------|------|--------|
+| 颜色 | 对照 `AppColors`,有的直接引用 | 列入新增清单 → 交给 theme-design |
+| 字体 | 对照 `AppTextStyles` | 同上 |
+| 间距 | 对照 `AppSpacing` | 同上（或直接用数字 + 注释） |
+| 图标 | 对照 `assets/image/ic_*` | 下载 Figma 切图 |
+| 图片 | 对照 `assets/image/` | 下载 Figma 切图 |
+
+**特殊阴影色**（如 `Color(0x14000000)` 8% 黑）可保留硬编码,加注释说明 Figma Token 名。
 
 **Step 2.5 — 自动下载切图 (Figma 才能做) ★ 默认 3x**
 
