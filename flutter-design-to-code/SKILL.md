@@ -157,6 +157,31 @@ flutter:
 
 不要 fallback 到文字。直接产出 **可复制粘贴的 curl 清单** + 目标路径 + 重命名后的文件名,让用户一键跑:
 
+⛔ **curl 格式硬性规则(违反 = 用户粘贴就报错):**
+1. **每条 curl 必须单行**,禁止用 `\` 反斜杠换行分成多行(用户复制会断行)
+2. **URL 必须用双引号**包起来(包含 `&` 或 `?` 的 URL 不加引号会被 shell 解析)
+3. **一行只做一件事**:`curl -o {file} "{url}"` — 不要加 `&&` 串多个
+4. **首行必须是 `cd /完整/绝对/路径`**(用户不知道当前 pwd)
+5. **末尾加一条 `ls -lh` 让用户自验**
+
+✅ 正确示例:
+```bash
+cd /Users/tg/Desktop/d/project/assets/image/3.0x/module
+
+curl -L -o img_module_1.png "https://cdn.example.com/path?w=600&q=80"
+
+curl -L -o img_module_2.png "https://cdn.example.com/path2"
+
+ls -lh
+```
+
+❌ 错误示例(用户粘贴会断行出错):
+```bash
+curl -L -o img_1.png \
+  "https://..."
+```
+
+
 ````markdown
 # {module} 模块切图 — 手动下载清单
 
