@@ -103,12 +103,20 @@ fi
 import json, os, sys
 SETTINGS = ".claude/settings.json"
 HOOKS = {
+    "UserPromptSubmit": [
+        {"hooks": [{"type": "command", "command": "bash _governance/hooks/router.sh"}]}
+    ],
     "PreToolUse": [
-        {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "bash _governance/hooks/guard-core.sh"}]},
+        {"matcher": "Write|Edit", "hooks": [
+            {"type": "command", "command": "CLAUDE_HOOK_EVENT=PreToolUse bash _governance/hooks/conductor.sh"},
+            {"type": "command", "command": "bash _governance/hooks/guard-core.sh"}
+        ]},
         {"matcher": "Bash", "hooks": [{"type": "command", "command": "bash _governance/hooks/guard-git.sh"}]}
     ],
     "PostToolUse": [
         {"matcher": "Write|Edit", "hooks": [
+            {"type": "command", "command": "CLAUDE_HOOK_EVENT=PostToolUse bash _governance/hooks/conductor.sh"},
+            {"type": "command", "command": "bash _governance/hooks/reflector.sh"},
             {"type": "command", "command": "bash _governance/hooks/checkpoint.sh"},
             {"type": "command", "command": "bash _governance/hooks/auto-format.sh"},
             {"type": "command", "command": "bash _governance/hooks/auto-build-runner.sh"}
