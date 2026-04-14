@@ -155,7 +155,23 @@ category: designer
 - 可访问性
 - 埋点
 - 离线支持
+- 资源管理(见下方铁律)
 - ...
+
+**⛔ 非功能需求 / 资源管理段铁律(违反 = reflector 拦截):**
+
+涉及图片/切图资源时,必须写:
+> "切图在 page-gen 阶段用 curl 下载到本地 `assets/image/3.0x/{module}/`,
+>  代码中使用 `Image.asset('assets/image/3.0x/{module}/xxx.png')`,
+>  禁止硬编码 `figma.com/api/mcp/asset/...` URL(MCP URL 7 天过期)"
+
+❌ **禁止写这类后门话术:**
+- "Figma CDN URL 有效期 7 天,注释标明,到期后替换为本地资源"
+- "先用 MCP URL,后续替换"
+- "图片 URL 有效期 7 天"
+- "之后替换为本地"
+
+这种话术会导致 page-gen 偷懒直接用 Figma URL,生产代码 7 天后集体 404。必须在 spec 阶段就堵死。
 
 ### Step 10 — 写入 docs/specs/{module}.md
 按 `_knowledge/artifact-templates/spec.template.md` 7 段格式写入。
