@@ -39,13 +39,7 @@
       "Bash(git log:*)",
       "Bash(git stash)",
       "Bash(git stash pop)",
-      "Bash(curl * figma.com*)",
-      "Bash(curl * figma.com/*)",
-      "Bash(curl * raw.githubusercontent.com*)",
-      "Bash(curl * picsum.photos*)",
-      "Bash(curl * -o assets/*)",
-      "Bash(curl -L -o assets/*)",
-      "Bash(curl -L -o * figma*)"
+      "Bash(curl:*)"
     ],
     "deny": [
       "Write(.env.prod)",
