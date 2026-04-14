@@ -91,6 +91,48 @@ cp -r "$TMP_DIR/_design" . 2>/dev/null && echo -e "${GREEN}  ✓ _design${NC}" |
 cp -r "$TMP_DIR/_knowledge" . 2>/dev/null && echo -e "${GREEN}  ✓ _knowledge${NC}" || true
 cp -r "$TMP_DIR/_governance" . 2>/dev/null && echo -e "${GREEN}  ✓ _governance${NC}" || true
 
+# ═══════════════════════════════════════════════════
+# hook 脚本可执行
+# ═══════════════════════════════════════════════════
+if [ -d "_governance/hooks" ]; then
+  chmod +x _governance/hooks/*.sh 2>/dev/null || true
+fi
+
+# 确保 settings.json 有 hooks(不覆盖现有配置)
+/usr/bin/python3 <<'PYEOF'
+import json, os, sys
+SETTINGS = ".claude/settings.json"
+HOOKS = {
+    "PreToolUse": [
+        {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "bash _governance/hooks/guard-core.sh"}]},
+        {"matcher": "Bash", "hooks": [{"type": "command", "command": "bash _governance/hooks/guard-git.sh"}]}
+    ],
+    "PostToolUse": [
+        {"matcher": "Write|Edit", "hooks": [
+            {"type": "command", "command": "bash _governance/hooks/checkpoint.sh"},
+            {"type": "command", "command": "bash _governance/hooks/auto-format.sh"},
+            {"type": "command", "command": "bash _governance/hooks/auto-build-runner.sh"}
+        ]},
+        {"hooks": [{"type": "command", "command": "bash _governance/hooks/telemetry.sh"}]}
+    ],
+    "Stop": [{"hooks": [{"type": "command", "command": "bash _governance/hooks/stop-check.sh"}]}]
+}
+if not os.path.exists(SETTINGS):
+    sys.exit(0)
+with open(SETTINGS) as f:
+    try: cfg = json.load(f)
+    except: sys.exit(0)
+cfg.setdefault("hooks", {})
+for event, new_entries in HOOKS.items():
+    existing = cfg["hooks"].get(event, [])
+    new_cmds = {h["command"] for e in new_entries for h in e.get("hooks", [])}
+    existing_cmds = {h.get("command","") for e in existing for h in e.get("hooks", [])}
+    if not new_cmds.issubset(existing_cmds):
+        cfg["hooks"][event] = existing + new_entries
+with open(SETTINGS, "w") as f:
+    json.dump(cfg, f, indent=2, ensure_ascii=False)
+PYEOF
+
 # ─── 清理 ───
 rm -rf "$TMP_DIR"
 
