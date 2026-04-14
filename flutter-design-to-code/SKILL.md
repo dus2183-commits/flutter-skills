@@ -254,10 +254,63 @@ Container(width: 80, height: 80, color: Colors.grey[300])
 ```
 并在 `docs/review/{date}-{module}.md` 的 "遗留项" 段记录。
 
-**硬性禁止的 3 种 fallback(视觉差太大 = bug 不是兼容方案):**
-1. 把图形元素改成文字(Image → Text)
-2. 把照片改成纯色/渐变色块(Photo → Container + LinearGradient)
-3. 把插画改成 Material Icons(Illustration → Icon widget)
+## ⚠️ 占位规则(结构 vs 降级的分界)
+
+**核心原则: 宁可难看,不可无物。**
+
+开发期 Figma 图拿不到时:
+- ✅ **必须渲染一个可见的占位元素**,保留原设计的位置/尺寸/形状(菱形就是菱形,圆就是圆)
+- ✅ 占位元素**必须有明显标记**(虚线边框 / 灰色背景 / "TODO: 替换照片" 文字),让 review 一眼看出
+- ❌ **禁止什么都不渲染**(让 UI 结构完整丢失)
+- ❌ **禁止把占位当最终交付**(没下完图就汇报 "✅ 完成")
+
+**占位的标准写法:**
+```dart
+// ✅ 好的占位:保留结构 + 明显标记 + TODO 注释
+// TODO(splash): 替换为 assets/image/3.0x/splash/img_splash_1.png (Figma node 1:43 child[0])
+Container(
+  width: 120.w,
+  height: 120.w,
+  decoration: BoxDecoration(
+    color: Colors.grey[300],
+    border: Border.all(color: Colors.red, width: 2, style: BorderStyle.solid),
+    borderRadius: BorderRadius.circular(20.r),
+  ),
+  child: Center(
+    child: Text(
+      'TODO: img_splash_1',
+      style: TextStyle(fontSize: 10.sp, color: Colors.red),
+    ),
+  ),
+)
+```
+
+**同时必须产出 `docs/manual-download-{module}.md`** 列出所有待下载资源(含 curl 清单),
+让用户/开发跟得上进度。
+
+---
+
+**3 种硬性禁止的 fallback(这些改变了设计意图,不是占位):**
+1. 把图形元素改成文字(Image → Text)— 完全换元素
+2. 把原本 4 个元素改成 2 个(减数量)或 6 个(加数量)
+3. 把原本的形状改变(菱形→矩形,圆→方)
+
+**但这些"状态占位"是允许的(不是 fallback,是 UI 状态):**
+| 场景 | 允许做法 | 理由 |
+|---|---|---|
+| 用户头像未上传 | `Icons.person` + 圆形背景 | 业务上本来就没图 |
+| 列表空状态 | 灰色插画 + "暂无数据" 文字 | 空数据状态不是缺资源 |
+| 图片加载中(CachedNetworkImage placeholder) | `CircularProgressIndicator` / 灰块 | 异步加载必须有过渡态 |
+| 图片加载失败(errorWidget) | 错误图标 + 重试按钮 | 容错设计 |
+| Mock 头像 / 默认封面 | 品牌色 Container + 用户名首字母 | 缺图时的合理兜底 |
+
+**区分标准**:
+- ✅ "这个位置**运行时可能**没资源" → 占位合理
+- ❌ "设计稿**明确画了**这个图,但我懒得下载" → 降级违规
+
+判断法:**Figma 里那个节点有 image fill 或 export enabled 吗?**
+- 有 → 必须下载到本地,不许占位代替
+- 没有(只是 rect + color) → 按 Figma 画 Container 即可,无需下载
 
 **硬性禁止的布局做法(违反 = 跟 Figma 对不齐):**
 1. ❌ 凭"视觉印象"猜 Positioned 的 top/left 数值
