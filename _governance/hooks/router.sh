@@ -128,6 +128,11 @@ has_feature_intent = any(re.search(pat, p) for pat in [
 ])
 
 if has_figma_url and has_feature_intent:
+    # 写 figma 模式标记 — conductor 看到会放行 MCP 生成代码(post-figma 会反推 spec)
+    os.makedirs(".flow_checkpoint", exist_ok=True)
+    with open(".flow_checkpoint/.figma_mode", "w") as f:
+        f.write(str(int(__import__('time').time())))
+
     # stdout 注入 — UserPromptSubmit hook 的 stdout 会追加到 prompt context
     print("")
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

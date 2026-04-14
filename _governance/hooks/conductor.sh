@@ -139,6 +139,21 @@ if disk_step > mod_state["step"]:
     mod_state["step"] = disk_step
     mod_state["pure_ui"] = is_pure_ui
 
+# ─── figma 模式检测(MCP-first + post-figma 后处理)──
+# 如果 router.sh 写了 .figma_mode 标记且新鲜(<60 分钟),允许 MCP 直接写代码
+# post-figma skill 会后续反推 spec.md/plan.md
+figma_mode = False
+figma_flag = ".flow_checkpoint/.figma_mode"
+if os.path.exists(figma_flag):
+    try:
+        with open(figma_flag) as f:
+            ts = int(f.read().strip())
+        age_min = (int(time.time()) - ts) / 60
+        if age_min < 60:
+            figma_mode = True
+    except:
+        pass
+
 if EVENT == "PreToolUse":
     # 检查依赖是否满足
     required_prev = match_step - 1
@@ -150,6 +165,11 @@ if EVENT == "PreToolUse":
     # 纯 UI 模块:page-gen 只依赖 plan(step 2),跳过 api-design/model-gen/api-gen
     if is_pure_ui and match_name in ('page-gen', 'test-gen'):
         required_prev = 2
+
+    # ★ figma 模式:MCP 可以先写代码,spec/plan 由 post-figma 后处理反推
+    # 只要模块最终有 spec/plan(Stop hook 时检查),过程中允许任意顺序
+    if figma_mode:
+        required_prev = 0  # 放行所有 step
 
     if mod_state["step"] < required_prev:
         missing = []
