@@ -1,6 +1,6 @@
 ---
 name: flutter-widget-gen
-description: 生成可复用的 Widget 组件。支持无状态/有状态/响应式三种类型。用户说"做一个按钮组件"、"生成 XX 卡片"、"封装一个输入框"时触发。
+description: 生成可复用的 Widget 组件(非页面,是组件)。支持无状态/有状态/响应式三种类型。用户说"做一个按钮组件"、"生成 XX 卡片"、"封装一个输入框"、"写一个组件"、"做个 widget"、"抽取成组件"、"封装 XX"时触发。
 type: skill
 stage: 4
 model: sonnet

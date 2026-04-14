@@ -1,6 +1,6 @@
 ---
 name: flutter-review
-description: 代码评审。对照项目规范(GetX/性能/安全/国际化/多平台)逐项检查,输出结构化报告。用户说"评审这个代码"、"review 这个页面"、"检查有没有问题"时触发。
+description: 代码评审。对照项目规范(GetX/性能/安全/国际化/多平台)逐项检查,输出结构化报告。用户说"评审这个代码"、"review 这个页面"、"检查有没有问题"、"帮我看看代码"、"code review"、"代码 review"、"审一下"、"看下规范"时触发。
 type: skill
 stage: 5
 model: opus

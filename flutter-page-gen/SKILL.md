@@ -1,6 +1,6 @@
 ---
 name: flutter-page-gen
-description: 生成页面三件套 (View + Controller + Binding)。用户说"生成 XX 页面"、"做列表页"、"做详情页"或 api-gen 完成后触发。GetX 风格,自动 loading/error/empty 三态,用 AppText/AppImage 等公共组件,注册路由。
+description: 生成页面三件套 (View + Controller + Binding)。用户说"生成 XX 页面"、"做列表页"、"做详情页"、"做表单页"、"加个登录页"、"做个 XX 界面"、"写一个 XX 页面"、"需要一个页面"或 api-gen 完成后触发。支持 list/detail/form/custom 4 种类型,GetX 风格,自动 loading/error/empty 三态,用 AppText/AppImage 等公共组件,自动注册路由。
 type: skill
 stage: 4
 model: sonnet

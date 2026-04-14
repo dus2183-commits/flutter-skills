@@ -1,6 +1,6 @@
 ---
 name: flutter-test-gen
-description: 给一段 Dart 代码,生成 mocktail 单元测试。用户说"生成测试"、"写单测"、"生成 unit test"时触发。每个方法覆盖成功/异常/边界三场景。
+description: 给一段 Dart 代码,生成 mocktail 单元测试。用户说"生成测试"、"写单测"、"加测试"、"生成 unit test"、"给 XX 写测试"、"测试覆盖"、"补测试"时触发。每个方法覆盖成功/异常/边界三场景,用 mocktail。
 type: skill
 stage: 5
 model: sonnet
