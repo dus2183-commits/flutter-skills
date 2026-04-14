@@ -229,8 +229,18 @@ Container(width: 80, height: 80, color: Colors.grey[300])
 ```
 并在 `docs/review/{date}-{module}.md` 的 "遗留项" 段记录。
 
-**唯一禁止的 fallback: 把设计里的图形元素改成纯文字(如 Image → Text)。
-这改变了设计意图,是 bug 不是 fallback。**
+**硬性禁止的 3 种 fallback(视觉差太大 = bug 不是兼容方案):**
+1. 把图形元素改成文字(Image → Text)
+2. 把照片改成纯色/渐变色块(Photo → Container + LinearGradient)
+3. 把插画改成 Material Icons(Illustration → Icon widget)
+
+**照片 fallback 顺序(从好到差,每一级都要试):**
+1. Figma MCP 拿 imageRef + Figma API 下载 → 最佳
+2. 问用户有没有切图(manual_assets 或手动贴路径)→ 次佳
+3. 用 Unsplash / Pexels 免费公开图(4xx 张风格接近的)→ 可接受的 placeholder
+4. 灰色 Container + TODO 注释 + review.md 遗留项 → 最后兜底
+
+⛔ **禁止跳过 1-3 级直接到"渐变色块" 或 "Icon 图标"**,这不是 fallback 是改设计。
 
 ---
 
