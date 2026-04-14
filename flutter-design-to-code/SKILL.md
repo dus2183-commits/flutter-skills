@@ -14,6 +14,11 @@ category: bridge
 
 ## ⛔ 铁律（违反立即停止）
 
+0. **MCP 下图必须用"返回 URL"的方式,禁止用 base64。**
+   - 正确: `get_screenshot` / `get_image_url` / `use_figma(return_url=true)` 返回 URL,然后 `curl -o 本地路径 "URL"` 下载
+   - 错误: `export_image` 返回 base64 → 切分 chunk → 拼接 → 解码(大图会截断,1MB+ 就崩)
+   - 如果只有 base64 方式,先 `data:image/png;base64,xxx` 写到临时文件再 mv
+   - 最糟的情况: 告诉用户手动从 Figma 导出,不要硬试 base64 chunking
 1. **禁止把 Figma MCP 的临时 URL 当生产代码。** MCP 返回的 `https://www.figma.com/api/mcp/asset/...` 只有 7 天有效期,**必须**立刻 curl 下载到本地 `assets/image/3.0x/{module}/`。
 2. **禁止用 `Image.network` 当图片占位。** 项目有 `AppImage` / `AppNetworkImage` 组件,统一用这个。本地 Asset 用 `Image.asset` 或封装组件。
 3. **禁止使用驼峰 / 中文命名图片文件。** 必须按 conventions.md 段 11.1 规则: `ic_/bg_/btn_/img_/avatar_/logo_` 前缀 + snake_case。
