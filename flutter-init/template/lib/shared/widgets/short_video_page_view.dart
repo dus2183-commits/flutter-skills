@@ -243,9 +243,10 @@ class _ShortVideoPageViewState extends State<ShortVideoPageView> {
   }
 
   Widget _buildCoverPlaceholder(PlayerConfig config) {
-    if (config.cover != null) {
+    final cover = config.cover;
+    if (cover != null && cover.isNotEmpty) {
       return Image.network(
-        config.cover!,
+        cover,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
