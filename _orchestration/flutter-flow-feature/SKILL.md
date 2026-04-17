@@ -21,7 +21,7 @@ owner: @lead
    - **模块内也可并行**: api-design + theme-design 同时跑，page-gen + widget-gen 同时跑（见段 6 Worker 调用映射的 parallel 标记）
    - **但有依赖的必须串行**: model-gen 必须等 api-design 完成，api-gen 必须等 model-gen 完成
 3. **每一步必须读对应的 SKILL.md。** 生成代码前，先读 `.claude/skills/flutter-{skill}/SKILL.md` 里的段 6 代码模板，按模板写，不要凭自己的知识。
-4. **每一步必须产出文件。** spec → `docs/specs/{m}.md`，plan → `docs/plans/{m}.md`，api-design → `docs/api/{m}.md`，model-gen → `.model.dart`，api-gen → `_repository.dart` + mock JSON，page-gen → 三件套。没有文件产出 = 没做。
+4. **每一步必须产出文件。** spec → `docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md`，plan → `docs/plans/{YYYYMMDD}-{作者名}-{需求名}.md`，api-design → `docs/api/{m}.md`，model-gen → `.model.dart`，api-gen → `_repository.dart` + mock JSON，page-gen → 三件套。没有文件产出 = 没做。
 5. **禁止把有依赖的 skill 合并成一步。** 不能"同时生成 model + repository"（repo 依赖 model），但可以"同时生成 page + widget"（无依赖）。
 6. **Figma URL 出现时推荐走 `figma-implement-design → flutter-post-figma` 双阶段链,不走本 skill。** 用户贴 `figma.com/design/...` 或 `figma.com/file/...` 时:
    - 阶段 1: `figma:figma-implement-design`(MCP 原生)生成初版 UI 代码
@@ -40,8 +40,8 @@ owner: @lead
 1. 必须按顺序执行,禁止跳步（9 步全做,一步不少）:
    spec → plan → api-design → model-gen → api-gen → page-gen → polishing → test-gen → review
 2. 每步必须产出文件,没文件 = 没做:
-   [1] spec: docs/specs/{module}.md
-   [2] plan: docs/plans/{module}.md
+   [1] spec: docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md
+   [2] plan: docs/plans/{YYYYMMDD}-{作者名}-{需求名}.md
    [3] api-design: docs/api/{module}.md
    [4] model-gen: lib/features/{module}/data/models/*.model.dart
        ⛔ 文件名必须是 `{entity}.model.dart` (带 .model 中缀),不是 `{entity}.dart` 或 `{entity}_model.dart`
@@ -91,8 +91,8 @@ owner: @lead
    - 输出汇总报告给用户
 
 **收尾检查清单（main Agent 必须逐项确认）:**
-- [ ] 每个模块都有 docs/specs/{m}.md
-- [ ] 每个模块都有 docs/plans/{m}.md
+- [ ] 每个模块都有 docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md
+- [ ] 每个模块都有 docs/plans/{YYYYMMDD}-{作者名}-{需求名}.md
 - [ ] 每个模块都有 docs/api/{m}.md
 - [ ] 每个模块都有 lib/features/{m}/data/models/
 - [ ] 每个模块都有 lib/features/{m}/data/repositories/
@@ -319,11 +319,11 @@ PAUSED → (上一个 state) (用户继续)
 | 当前 State | 触发事件 | 下个 State | 条件 |
 |---|---|---|---|
 | IDLE | user_prompt | SPEC'ING | 输入非空 |
-| SPEC'ING | spec_artifact_written | SPEC_REVIEW | docs/specs/{m}.md 存在 |
+| SPEC'ING | spec_artifact_written | SPEC_REVIEW | docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md 存在 |
 | SPEC_REVIEW | reflector_pass | PLANNING | - |
 | SPEC_REVIEW | reflector_retry | SPEC'ING | retry < 2 |
 | SPEC_REVIEW | reflector_fail | ASK_USER | retry >= 2 |
-| PLANNING | plan_artifact_written | PLAN_REVIEW | docs/plans/{m}.md 存在 |
+| PLANNING | plan_artifact_written | PLAN_REVIEW | docs/plans/{YYYYMMDD}-{作者名}-{需求名}.md 存在 |
 | PLAN_REVIEW | reflector_pass | DESIGNING | - |
 | PLAN_REVIEW | reflector_retry | PLANNING | retry < 2 |
 | DESIGNING | all_parallel_done | API_REVIEW | api-design + theme-design 全完成 |
@@ -350,8 +350,8 @@ PAUSED → (上一个 state) (用户继续)
 
 | State | 调用方式 | Skills | 备注 |
 |---|---|---|---|
-| SPEC'ING | sequential | `flutter-spec` | 输出 docs/specs/{m}.md |
-| PLANNING | sequential | `flutter-plan` | 读 spec,输出 docs/plans/{m}.md |
+| SPEC'ING | sequential | `flutter-spec` | 输出 docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md |
+| PLANNING | sequential | `flutter-plan` | 读 spec,输出 docs/plans/{YYYYMMDD}-{作者名}-{需求名}.md |
 | DESIGNING | **parallel** | `flutter-api-design` + `flutter-theme-design` | 用 2 个 Agent 并发 |
 | MODEL_GEN | sequential | `flutter-model-gen` | 读 docs/api/{m}.md |
 | API_GEN | sequential | `flutter-api-gen` | 必须在 model-gen 之后 |
@@ -499,9 +499,9 @@ PAUSED → (上一个 state) (用户继续)
 🚀 启动 feature workflow: 公告模块
    workflow_id: feature-announce-2026-04-10-1430
 
-[1/12] ✅ SPEC'ING        生成 docs/specs/announce.md (1.2KB) [12s]
+[1/12] ✅ SPEC'ING        生成 docs/specs/20260410-渡-公告模块.md (1.2KB) [12s]
 [2/12] ✅ SPEC_REVIEW     Reflector PASS [3s]
-[3/12] ✅ PLANNING        生成 docs/plans/announce.md (2.1KB) [18s]
+[3/12] ✅ PLANNING        生成 docs/plans/20260410-渡-公告模块.md (2.1KB) [18s]
 [4/12] ✅ PLAN_REVIEW     Reflector PASS [2s]
 [5/12] ⏳ DESIGNING       并行: api-design + theme-design ...
 [6/12] ⏸ MODEL_GEN       (等待中)
@@ -532,8 +532,8 @@ PAUSED → (上一个 state) (用户继续)
 ✅ 公告模块完成
 
 📁 生成文件 (9 个):
-   docs/specs/announce.md
-   docs/plans/announce.md
+   docs/specs/20260410-渡-公告模块.md
+   docs/plans/20260410-渡-公告模块.md
    docs/api/announce.md
    lib/features/announce/data/models/announce.model.dart
    lib/features/announce/data/repositories/announce_repository.dart

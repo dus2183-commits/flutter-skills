@@ -76,11 +76,12 @@ category: designer
 4. **场景** - 在什么情境下用 (启动后 / 收到推送后)
 5. **约束** - 必须 / 不要 / 优先 (必须支持离线 / 不要弹窗 / 优先 web 端)
 
-### Step 3 — 确认模块命名
+### Step 3 — 确认模块命名 + 作者
 - ASK_USER 模块英文名 (snake_case),给 1-2 个建议
 - 检查 `lib/features/` 是否已有同名(冲突则改名)
 - 检查 `docs/_context/glossary.md` 是否有相关术语
-- 确认中文名
+- 确认中文名(即需求名,用于文档文件名)
+- ASK_USER 作者名(用于文档文件名,如 git 用户名或昵称)
 
 ### Step 4 — 列出涉及页面
 - ASK_USER 涉及哪些页面 (let user list, 然后回填表格)
@@ -173,8 +174,14 @@ category: designer
 
 这种话术会导致 page-gen 偷懒直接用 Figma URL,生产代码 7 天后集体 404。必须在 spec 阶段就堵死。
 
-### Step 10 — 写入 docs/specs/{module}.md
+### Step 10 — 写入 docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md
 按 `_knowledge/artifact-templates/spec.template.md` 7 段格式写入。
+
+**文件命名规则:** `{YYYYMMDD}-{作者名}-{需求名}.md`
+- `{YYYYMMDD}` = 当天日期,如 `20260417`
+- `{作者名}` = Step 3 中用户输入的名字
+- `{需求名}` = 模块中文名(允许中文),如 `公告模块`
+- 示例: `docs/specs/20260417-渡-公告模块.md`
 
 ### Step 11 — 自检 (跑段 8 checklist)
 
@@ -186,8 +193,10 @@ category: designer
 ## 5. 输出产物
 
 ```
-docs/specs/{module}.md
+docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md
 ```
+
+**命名示例:** `docs/specs/20260417-渡-公告模块.md`
 
 文件 frontmatter:
 ```yaml
@@ -195,8 +204,9 @@ docs/specs/{module}.md
 artifact_type: spec
 module: announce
 version: 1
-created: 2026-04-10
+created: 2026-04-17
 created_by: flutter-spec
+author: 渡
 parent_artifact: null
 status: draft
 owner: @c
@@ -341,14 +351,14 @@ owner: @c
 
 **ROLLBACK:**
 - 写文件失败 → 删除半成品
-- 用户中途取消 → 删除 docs/specs/{module}.md(若已创建)
+- 用户中途取消 → 删除对应的 docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md(若已创建)
 
 ---
 
 ## 10. 联动
 
 **成功后建议:**
-> "Spec 完成: docs/specs/{module}.md
+> "Spec 完成: docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md
 >   - {N} 个页面
 >   - {M} 个接口
 >   - {K} 个异常场景

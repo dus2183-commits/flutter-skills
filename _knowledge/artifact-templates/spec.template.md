@@ -4,6 +4,7 @@ module: {{module_name}}
 version: 1
 created: {{YYYY-MM-DD}}
 created_by: flutter-spec
+author: {{author}}
 parent_artifact: null
 status: draft
 owner: @{{owner}}
@@ -12,7 +13,8 @@ owner: @{{owner}}
 # {{module_chinese_name}} - 需求设计
 
 > 本文档由 `flutter-spec` 自动生成。修改后请同步更新 `version`。
-> 下游 artifact: `docs/plans/{{module_name}}.md`
+> 文件命名: `{YYYYMMDD}-{作者名}-{需求名}.md`
+> 下游 artifact: `docs/plans/{YYYYMMDD}-{作者名}-{需求名}.md`
 
 ---
 

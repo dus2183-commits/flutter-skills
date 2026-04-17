@@ -1,6 +1,6 @@
 ---
 name: flutter-plan
-description: 把 spec 拆成可执行的实施任务清单。读 docs/specs/{module}.md,输出 docs/plans/{module}.md。 按 6 类拆分(api/theme/model/repo/page/widget),标依赖关系,标 mock 先行点。
+description: 把 spec 拆成可执行的实施任务清单。读 docs/specs/ 下的 spec 文件,输出 docs/plans/{YYYYMMDD}-{作者名}-{需求名}.md。 按 6 类拆分(api/theme/model/repo/page/widget),标依赖关系,标 mock 先行点。
 type: skill
 stage: 2
 model: opus
@@ -20,13 +20,13 @@ category: designer
 ## 2. 前置必读
 - `docs/_context/tech-stack.md`
 - `docs/_context/conventions.md`
-- `docs/specs/{module}.md` (上游 artifact)
+- `docs/specs/{YYYYMMDD}-{作者名}-{需求名}.md` (上游 artifact)
 - `_knowledge/artifact-templates/plan.template.md` (输出格式)
 
 ## 3. 输入
 
 **必填:**
-- `spec_path` (string) — spec 文件路径,如 `docs/specs/announce.md`
+- `spec_path` (string) — spec 文件路径,如 `docs/specs/20260417-渡-公告模块.md`
 
 **自动从 spec 读取:**
 - module_name
@@ -91,8 +91,12 @@ category: designer
 ## 5. 输出产物
 
 ```
-docs/plans/{module}.md
+docs/plans/{YYYYMMDD}-{作者名}-{需求名}.md
 ```
+
+**命名规则:** 与 spec 保持一致,`{YYYYMMDD}-{作者名}-{需求名}.md`
+- 从上游 spec 的 frontmatter 中读取 `author` 和模块中文名
+- 示例: `docs/plans/20260417-渡-公告模块.md`
 
 frontmatter:
 ```yaml
@@ -100,9 +104,10 @@ frontmatter:
 artifact_type: plan
 module: announce
 version: 1
-created: 2026-04-10
+created: 2026-04-17
 created_by: flutter-plan
-parent_artifact: docs/specs/announce.md
+author: 渡
+parent_artifact: docs/specs/20260417-渡-公告模块.md
 status: draft
 owner: @lead
 ---

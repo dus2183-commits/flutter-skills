@@ -4,7 +4,8 @@ module: {{module_name}}
 version: 1
 created: {{YYYY-MM-DD}}
 created_by: flutter-plan
-parent_artifact: docs/specs/{{module_name}}.md
+author: {{author}}
+parent_artifact: docs/specs/{{YYYYMMDD}}-{{author}}-{{需求名}}.md
 status: draft
 owner: @{{owner}}
 ---
@@ -12,6 +13,7 @@ owner: @{{owner}}
 # {{module_chinese_name}} - 实施计划
 
 > 本文档由 `flutter-plan` 从 spec 自动拆解生成。
+> 文件命名: `{YYYYMMDD}-{作者名}-{需求名}.md`
 > 下游: `docs/api/{{module_name}}.md`(由 flutter-api-design 生成)
 
 ---

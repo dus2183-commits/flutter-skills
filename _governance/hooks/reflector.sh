@@ -135,6 +135,9 @@ elif file_path.endswith("_repository.dart") and "binding" not in file_path:
         blocking.append("Repository 不应 import app_exception.dart (会触发 unused_import)")
     if re.search(r"path:\s*['\"]/api/", content):
         blocking.append("Repository path 不应带 /api 前缀 (baseUrl 已含 apiPrefix,重复会 /api/api/ 404)")
+    # bug #26: ApiClient 契约方法是 postJson / postForm,不是 post
+    if re.search(r"_api\.post\s*\(", content):
+        blocking.append("ApiClient 没有 .post() 方法,用 .postJson() 或 .postForm() 代替 (契约方法只有: get / postJson / postForm / getList / delete)")
 
 # ─── *_binding.dart ─────────────────────────
 elif file_path.endswith("_binding.dart"):
@@ -153,6 +156,56 @@ elif file_path.endswith("_page.dart"):
         warnings.append("推荐用 EasyRefresh 替代 RefreshIndicator (下拉+上拉)")
     if re.search(r"figma\.com/api/mcp/asset", content):
         blocking.append("禁止在生产代码里写 figma.com/api/mcp/asset URL (7 天过期),必须用 curl 下载到 assets/image/3.0x/{module}/ 后改成 Image.asset")
+
+    # bug #29: Obx(() => ...) 闭包内必须读 .value,否则运行时报 'improper use of Obx'
+    for m in re.finditer(r"Obx\s*\(\s*\(\)\s*=>", content):
+        start = m.end()
+        depth = 1
+        end = len(content)
+        for i in range(start, len(content)):
+            ch = content[i]
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        body = content[start:end]
+        # 闭包体内无 .value 且无 .obs 赋值 → 误用(嵌套子 widget 不会触发 Obx 响应)
+        if ".value" not in body and ".obs" not in body:
+            warnings.append(
+                "Obx(() => ...) 闭包内没读响应式变量(.value) — 运行时会报 "
+                "'improper use of a GetX'。要么闭包内直接访问 controller.xxx.value,"
+                "要么去掉 Obx 改普通 Widget"
+            )
+            break  # 一个文件报一次够了
+
+# ─── app/tabs.dart 路由页面 import 必须三层嵌套 ──
+# bug #27: page-gen 按规范生成 features/{m}/presentation/pages/{page}/{page}.dart
+#          tabs.dart 如果引用两层路径 features/{m}/presentation/pages/{page}.dart → 编译错
+elif re.search(r"app/tabs\.dart$", file_path):
+    wrong = re.findall(r"features/(\w+)/presentation/pages/(\w+_page)\.dart", content)
+    if wrong:
+        samples = ", ".join([f"{m}/{p}.dart" for m, p in wrong[:3]])
+        blocking.append(
+            f"tabs.dart 引用了两层路径 ({samples}) — page-gen 规范是三层嵌套: "
+            "features/{module}/presentation/pages/{page_name}/{page_name}.dart"
+        )
+
+# ─── main.dart / app/app.dart 的 Tab 主壳初始化(#28) ──
+# Tab 页不是独立路由,GetPage 的 binding 不会触发 —
+# 必须靠 GetMaterialApp 的 initialBinding: 一次性 lazyPut 所有 Tab Controller,
+# 否则进 Tab 会报 '"XxxController" not found'
+elif re.search(r"(lib/main\.dart|lib/app/app\.dart)$", file_path):
+    if "GetMaterialApp" in content and ("tabs.dart" in content or "MainScaffold" in content):
+        if "initialBinding" not in content:
+            blocking.append(
+                "GetMaterialApp 有 Tab 主壳但没设 initialBinding: — "
+                "Tab 页 Controller 不会自动注入,运行时会报 '\"XxxController\" not found'。"
+                "加 initialBinding: TabsBinding() 并在 Bindings.dependencies() 里为每个 Tab Controller "
+                "调 Get.lazyPut<XxxController>(XxxController.new, fenix: true)"
+            )
 
 # ─── *_controller.dart ──────────────────────
 elif file_path.endswith("_controller.dart"):

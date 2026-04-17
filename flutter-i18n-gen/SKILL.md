@@ -1,3 +1,4 @@
+
 ---
 name: flutter-i18n-gen
 description: 扫描代码中的硬编码中文字符串,自动提取为 .tr key + 生成翻译文件。用户说"国际化"、"提取中文"、"i18n"时触发。替换硬编码为 'module.key'.tr。

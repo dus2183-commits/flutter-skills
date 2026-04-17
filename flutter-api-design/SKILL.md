@@ -14,7 +14,7 @@ category: designer
 
 ## 1. 触发场景
 
-- "设计 XX 模块的接口" / "定义 XX 的 API"
+- "设计 XX 模块的接口" / "定义 XX 的 API" 
 - "接口契约" / "api design"
 - "这是后端给的接口文档，帮我生成契约"
 - "把这个 JSON 转成接口契约"
