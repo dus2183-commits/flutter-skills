@@ -455,10 +455,21 @@ class _AppVideoState extends State<AppVideo>
 
   /// 统一 UI 层 — IO 和 Web 共用
   Widget _buildVideoUI() {
+    // 竖屏模式下根据视频实际宽高比动态选择 fit：
+    //   横屏视频 (ar > 1.0) → fitWidth：宽度铺满，高度自适应居中，上下留黑边
+    //   竖屏/方形视频      → cover：铺满全屏（TikTok 风格）
+    // 横屏模式始终用 contain。
+    final BoxFit videoFit;
+    if (widget.renderer == PlayerRenderer.vertical) {
+      videoFit = _adapter.videoAspectRatio > 1.0 ? BoxFit.fitWidth : BoxFit.cover;
+    } else {
+      videoFit = BoxFit.contain;
+    }
+
     // 视频画面 — IO 和 Web 统一通过 adapter.videoWidget()
     final videoSurface = SizedBox.expand(
       child: FittedBox(
-        fit: widget.renderer == PlayerRenderer.vertical ? BoxFit.cover : BoxFit.contain,
+        fit: videoFit,
         child: SizedBox(
           width: kIsWeb ? 1920 : (_ioController?.value.size.width ?? 1920),
           height: kIsWeb ? 1080 : (_ioController?.value.size.height ?? 1080),
@@ -490,9 +501,17 @@ class _AppVideoState extends State<AppVideo>
           FadeTransition(
             opacity: _uiAnim,
             child: GestureDetector(
-              // ★ 独立 GestureDetector：点击圆形按钮直接切换播放，
-              //   不触发外层 onTap（外层负责显示/隐藏 UI）
-              onTap: _onDoubleTap,
+              // ★ 独立 GestureDetector：
+              //   - 控制栏已完全显示时 → 切换播放/暂停
+              //   - 控制栏未显示/动画中 → 先呼出控制栏，不立即操作播放
+              onTap: () {
+                if (_uiAnim.isCompleted) {
+                  _onDoubleTap();
+                } else {
+                  _uiAnim.forward();
+                  _autoHide();
+                }
+              },
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.5),
@@ -704,20 +723,42 @@ class _AppVideoState extends State<AppVideo>
   }
 
   Widget _buildPlaceholder() {
-    Widget ph = Container(color: Colors.black);
-    if (widget.config.cover != null) {
-      ph = Stack(
-        alignment: Alignment.center,
-        children: [
-          Image.network(widget.config.cover!, fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-          Container(
-            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.3), shape: BoxShape.circle),
-            padding: const EdgeInsets.all(16),
-            child: const Icon(Icons.play_arrow, color: Colors.white, size: 48),
+    final cover = widget.config.cover;
+
+    // 背景：封面图或纯黑
+    final Widget bg = (cover != null && cover.isNotEmpty)
+        ? Image.network(
+            cover,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (_, __, ___) => const ColoredBox(color: Colors.black),
+          )
+        : const ColoredBox(color: Colors.black);
+
+    final Widget ph = Stack(
+      alignment: Alignment.center,
+      children: [
+        bg,
+        // 加载中 spinner（初始化完成后切换到 _buildVideoUI）
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.35),
+            shape: BoxShape.circle,
           ),
-        ],
-      );
-    }
+          padding: const EdgeInsets.all(20),
+          child: const SizedBox(
+            width: 40,
+            height: 40,
+            child: CircularProgressIndicator(
+              color: Colors.white,
+              strokeWidth: 2.5,
+            ),
+          ),
+        ),
+      ],
+    );
+
     return widget.renderer == PlayerRenderer.horizontal
         ? AspectRatio(aspectRatio: 16 / 9, child: ph)
         : ph;
